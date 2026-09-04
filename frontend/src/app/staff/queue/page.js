@@ -125,6 +125,31 @@ export default function StaffQueuePage() {
     }
   };
 
+  const handleWeighFarmer = async (bookingId) => {
+    if (!selectedCentreId) return;
+    setCallingBookingId(bookingId);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const res = await apiRequest('/api/queue/call-next', {
+        method: 'POST',
+        body: JSON.stringify({ centreId: selectedCentreId, bookingId }),
+      });
+
+      if (res.success) {
+        fetchLiveQueue(selectedCentreId);
+        router.push(`/staff/procurement?bookingId=${bookingId}`);
+      } else {
+        setError(res.message || (lang === 'hi' ? 'कांटे पर बुलाने में विफलता' : 'Failed to move farmer to scale'));
+        setCallingBookingId(null);
+      }
+    } catch (err) {
+      setError(err.message || (lang === 'hi' ? 'कांटे पर बुलाने में विफलता' : 'Failed to move farmer to scale'));
+      setCallingBookingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-8 font-body">
       <div className="max-w-6xl mx-auto">
@@ -272,12 +297,14 @@ export default function StaffQueuePage() {
                       <span className="text-[10px] font-medium text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
                         {lang === 'hi' ? 'प्रतीक्षारत' : 'Waiting'}
                       </span>
-                      <Link
-                        href={`/staff/procurement?bookingId=${item.bookingId}`}
-                        className="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-[10px] font-semibold transition-colors flex items-center gap-0.5 shadow-sm"
+                      <button
+                        onClick={() => handleWeighFarmer(item.bookingId)}
+                        disabled={callingBookingId === item.bookingId || callingNext}
+                        className="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-[10px] font-semibold transition-colors flex items-center gap-1 shadow-sm disabled:opacity-50"
+                        title={lang === 'hi' ? 'कांटे पर बुलाएं व तौल पर्ची दर्ज करें' : 'Call to Scale & Record Weight'}
                       >
-                        <span>{lang === 'hi' ? 'तौल करें' : 'Weigh'} →</span>
-                      </Link>
+                        <span>{callingBookingId === item.bookingId ? '...' : (lang === 'hi' ? 'तौल करें' : 'Weigh')} →</span>
+                      </button>
                     </div>
                   </div>
                 ))}

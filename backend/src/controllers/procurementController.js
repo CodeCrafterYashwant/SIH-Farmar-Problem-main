@@ -86,6 +86,17 @@ exports.createProcurement = async (req, res) => {
 
     await payment.save();
 
+    // Broadcast updated live queue snapshot so scale frees up in real time
+    try {
+      const { fetchLiveQueueSnapshot } = require('./queueController');
+      const { broadcastQueueUpdate } = require('../services/queue.socket');
+      const centreId = booking.centreId._id || booking.centreId;
+      const snapshot = await fetchLiveQueueSnapshot(centreId);
+      broadcastQueueUpdate(centreId, snapshot);
+    } catch (socketErr) {
+      console.error('Queue broadcast error on procurement:', socketErr);
+    }
+
     // Fire Email Notification 2 (Crop Procured)
     if (booking.farmerId?.email) {
       sendCropProcuredEmail({

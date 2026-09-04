@@ -113,10 +113,13 @@ exports.checkinFarmer = async (req, res) => {
   }
 };
 
-// POST /api/queue/call-next (Staff calls the next checked-in farmer)
+// Helper to construct the current live queue snapshot for a centre
+exports.fetchLiveQueueSnapshot = fetchLiveQueueSnapshot;
+
+// POST /api/queue/call-next (Staff calls the next checked-in farmer or specific booking)
 exports.callNext = async (req, res) => {
   try {
-    let { centreId } = req.body;
+    let { centreId, bookingId } = req.body;
 
     // Strict scoping: If user is staff, enforce their assigned centre
     if (req.user?.role === 'staff' && req.user?.centreId) {
@@ -130,23 +133,59 @@ exports.callNext = async (req, res) => {
       });
     }
 
-    // Find the earliest checked-in booking
-    const nextBooking = await Booking.findOne({
-      centreId,
-      status: 'CheckedIn',
-    })
-      .sort({ queuePosition: 1, createdAt: 1 })
-      .populate('farmerId', 'name mobile village');
+    let targetBooking;
 
-    if (!nextBooking) {
-      return res.status(200).json({
-        success: false,
-        message: 'No farmers currently waiting in the queue for this centre',
-      });
+    if (bookingId) {
+      targetBooking = await Booking.findOne({
+        _id: bookingId,
+        centreId,
+      }).populate('farmerId', 'name mobile village');
+
+      if (!targetBooking) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Selected booking not found for this mandi centre',
+        });
+      }
+
+      if (targetBooking.status === 'Procured') {
+        return res.status(400).json({
+          error: 'Already Procured',
+          message: 'This booking has already completed weighing and procurement',
+        });
+      }
+
+      if (targetBooking.status === 'Cancelled') {
+        return res.status(400).json({
+          error: 'Cancelled Booking',
+          message: 'This booking has been cancelled',
+        });
+      }
+    } else {
+      // Find the earliest checked-in booking
+      targetBooking = await Booking.findOne({
+        centreId,
+        status: 'CheckedIn',
+      })
+        .sort({ queuePosition: 1, createdAt: 1 })
+        .populate('farmerId', 'name mobile village');
+
+      if (!targetBooking) {
+        return res.status(200).json({
+          success: false,
+          message: 'No farmers currently waiting in the queue for this centre',
+        });
+      }
     }
 
-    nextBooking.status = 'Serving';
-    await nextBooking.save();
+    // Free any other uncompleted Serving bookings at this centre so only one is active at a time
+    await Booking.updateMany(
+      { centreId, status: 'Serving', _id: { $ne: targetBooking._id } },
+      { $set: { status: 'CheckedIn' } }
+    );
+
+    targetBooking.status = 'Serving';
+    await targetBooking.save();
 
     // Broadcast updated live queue
     const snapshot = await fetchLiveQueueSnapshot(centreId);
@@ -154,13 +193,13 @@ exports.callNext = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: `Farmer ${nextBooking.farmerId?.name || 'Farmer'} called to scale`,
+      message: `Farmer ${targetBooking.farmerId?.name || 'Farmer'} called to scale`,
       booking: {
-        bookingId: nextBooking._id,
-        tokenNumber: nextBooking.tokenNumber,
-        farmerName: nextBooking.farmerId?.name,
-        queuePosition: nextBooking.queuePosition,
-        status: nextBooking.status,
+        bookingId: targetBooking._id,
+        tokenNumber: targetBooking.tokenNumber,
+        farmerName: targetBooking.farmerId?.name,
+        queuePosition: targetBooking.queuePosition,
+        status: targetBooking.status,
       },
       queueSnapshot: snapshot,
     });

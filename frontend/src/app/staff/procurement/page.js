@@ -120,9 +120,19 @@ function ProcurementContent() {
         setSelectedBooking(matched);
         if (matched.cropType) handleCropChange(matched.cropType);
         if (matched.estimatedQuantityKg) setQuantityKg(matched.estimatedQuantityKg.toString());
+
+        // Automatically set status to Serving so scale desk becomes busy with this farmer
+        if (matched.status === 'CheckedIn' && selectedCentreId) {
+          apiRequest('/api/queue/call-next', {
+            method: 'POST',
+            body: JSON.stringify({ centreId: selectedCentreId, bookingId: matched._id }),
+          }).then(() => {
+            matched.status = 'Serving';
+          }).catch(console.error);
+        }
       }
     }
-  }, [selectedBookingId, bookings]);
+  }, [selectedBookingId, bookings, selectedCentreId]);
 
   // Total amount calculation
   const totalAmount = quantityKg && !isNaN(quantityKg) ? Math.round(Number(quantityKg) * ratePerKg * 100) / 100 : 0;
