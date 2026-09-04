@@ -24,6 +24,7 @@ export default function StaffQueuePage() {
   const [queueData, setQueueData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [callingNext, setCallingNext] = useState(false);
+  const [callingBookingId, setCallingBookingId] = useState(null);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
 
@@ -142,10 +143,10 @@ export default function StaffQueuePage() {
         router.push(`/staff/procurement?bookingId=${bookingId}`);
       } else {
         setError(res.message || (lang === 'hi' ? 'कांटे पर बुलाने में विफलता' : 'Failed to move farmer to scale'));
-        setCallingBookingId(null);
       }
     } catch (err) {
       setError(err.message || (lang === 'hi' ? 'कांटे पर बुलाने में विफलता' : 'Failed to move farmer to scale'));
+    } finally {
       setCallingBookingId(null);
     }
   };

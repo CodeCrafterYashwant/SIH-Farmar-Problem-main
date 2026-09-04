@@ -246,7 +246,7 @@ export default function StaffTodayPage() {
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 mt-1">
                         <span>{lang === 'hi' ? 'मो.:' : 'Mobile:'} <strong className="font-data">{b.farmerId?.mobile}</strong></span>
                         <span>{lang === 'hi' ? 'ग्राम:' : 'Village:'} {b.farmerId?.village}</span>
-                        {b.slotId && (
+                        {b.slotId?.startTime && (
                           <span>{lang === 'hi' ? 'स्लॉट:' : 'Slot:'} <strong className="font-data">{b.slotId.startTime} - {b.slotId.endTime}</strong></span>
                         )}
                         <span>{lang === 'hi' ? 'खाता:' : 'A/C:'} <span className="font-data">{b.farmerId?.bankAccount?.accountNumber}</span></span>
