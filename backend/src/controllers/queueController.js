@@ -67,6 +67,16 @@ exports.checkinFarmer = async (req, res) => {
       });
     }
 
+    // Strict scoping: If user is staff, verify booking belongs to their assigned centre
+    if (req.user?.role === 'staff' && req.user?.centreId) {
+      if (booking.centreId.toString() !== req.user.centreId.toString()) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'Access denied: You can only check in farmers arriving at your assigned mandi centre.',
+        });
+      }
+    }
+
     // Determine next sequential queue position for this centre
     const lastQueueItem = await Booking.findOne({
       centreId: booking.centreId,
@@ -106,7 +116,12 @@ exports.checkinFarmer = async (req, res) => {
 // POST /api/queue/call-next (Staff calls the next checked-in farmer)
 exports.callNext = async (req, res) => {
   try {
-    const { centreId } = req.body;
+    let { centreId } = req.body;
+
+    // Strict scoping: If user is staff, enforce their assigned centre
+    if (req.user?.role === 'staff' && req.user?.centreId) {
+      centreId = req.user.centreId.toString();
+    }
 
     if (!centreId) {
       return res.status(400).json({
@@ -139,9 +154,9 @@ exports.callNext = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: `Now serving Token: ${nextBooking.tokenNumber}`,
-      serving: {
-        id: nextBooking._id,
+      message: `Farmer ${nextBooking.farmerId?.name || 'Farmer'} called to scale`,
+      booking: {
+        bookingId: nextBooking._id,
         tokenNumber: nextBooking.tokenNumber,
         farmerName: nextBooking.farmerId?.name,
         queuePosition: nextBooking.queuePosition,
@@ -158,10 +173,27 @@ exports.callNext = async (req, res) => {
   }
 };
 
-// GET /api/queue/:centreId/live (Public live queue endpoint)
+// GET /api/queue/live or /api/queue/:centreId/live (Public live queue endpoint)
 exports.getLiveQueue = async (req, res) => {
   try {
-    const { centreId } = req.params;
+    let centreId = req.params.centreId || req.query.centreId;
+
+    // Strict scoping: If user is staff, enforce their assigned centre
+    if (req.user?.role === 'staff' && req.user?.centreId) {
+      centreId = req.user.centreId.toString();
+    }
+
+    if (!centreId || centreId === 'live') {
+      centreId = req.query.centreId;
+    }
+
+    if (!centreId) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'centreId is required',
+      });
+    }
+
     const snapshot = await fetchLiveQueueSnapshot(centreId);
 
     return res.status(200).json({

@@ -10,7 +10,8 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Search, 
-  Clock 
+  Clock,
+  Landmark
 } from 'lucide-react';
 
 export default function StaffTodayPage() {
@@ -48,8 +49,13 @@ export default function StaffTodayPage() {
         const res = await apiRequest('/api/centres');
         if (res.centres && res.centres.length > 0) {
           setCentres(res.centres);
-          const storedCentre = typeof window !== 'undefined' ? localStorage.getItem('sih_selected_centre') : null;
-          const defaultCentre = storedCentre || parsedUser.centreId?._id || parsedUser.centreId || res.centres[0]._id;
+          let defaultCentre;
+          if (parsedUser.role === 'staff' && parsedUser.centreId) {
+            defaultCentre = parsedUser.centreId?._id || parsedUser.centreId;
+          } else {
+            const storedCentre = typeof window !== 'undefined' ? localStorage.getItem('sih_selected_centre') : null;
+            defaultCentre = storedCentre || res.centres[0]._id;
+          }
           setSelectedCentreId(defaultCentre);
         }
       } catch (err) {
@@ -140,13 +146,18 @@ export default function StaffTodayPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {centres.length > 0 && (
+            {user?.role === 'staff' ? (
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 px-3.5 py-2 rounded-xl text-xs font-semibold text-emerald-950 shadow-sm">
+                <Landmark className="w-4 h-4 text-emerald-800 shrink-0" />
+                <span>{lang === 'hi' ? 'आपका उपार्जन केंद्र:' : 'Your Mandi Centre:'} <strong className="text-emerald-900 font-data">{user.centreId?.name || centres.find(c => c._id === selectedCentreId)?.name || 'Mandi'} {user.centreId?.code ? `(${user.centreId.code})` : ''}</strong></span>
+              </div>
+            ) : centres.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-600">{lang === 'hi' ? 'मंडी केंद्र:' : 'Mandi:'}</span>
+                <span className="text-xs font-medium text-slate-600">{lang === 'hi' ? 'मंडी केंद्र चुनें:' : 'Select Mandi:'}</span>
                 <select
                   value={selectedCentreId}
                   onChange={(e) => setSelectedCentreId(e.target.value)}
-                  className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-emerald-600"
+                  className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:border-emerald-600"
                 >
                   {centres.map((c) => (
                     <option key={c._id} value={c._id}>

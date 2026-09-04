@@ -350,11 +350,20 @@ exports.getReports = async (req, res) => {
       };
     }
 
-    const procurements = await Procurement.find(dateFilter)
+    let procurements = await Procurement.find(dateFilter)
       .populate('farmerId', 'name mobile village district bankAccount')
       .populate('bookingId')
       .sort({ createdAt: -1 })
       .lean();
+
+    // Strict scoping: If user is staff, only show records for their assigned mandi centre
+    if (req.user?.role === 'staff' && req.user?.centreId) {
+      const staffCentreId = req.user.centreId.toString();
+      procurements = procurements.filter((p) => {
+        const bCentre = p.bookingId?.centreId;
+        return bCentre && bCentre.toString() === staffCentreId;
+      });
+    }
 
     // Attach payment status and UTR details
     const procurementIds = procurements.map((p) => p._id);

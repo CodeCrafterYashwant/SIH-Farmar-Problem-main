@@ -3,8 +3,10 @@ const { Farmer, Staff } = require('../models');
 
 const getJwtSecret = () => process.env.JWT_SECRET || 'sih26032_smart_procurement_secret_key_2026';
 
-const generateToken = (userId, role) => {
-  return jwt.sign({ userId, role }, getJwtSecret(), {
+const generateToken = (userId, role, centreId = null) => {
+  const payload = { userId, role };
+  if (centreId) payload.centreId = centreId.toString();
+  return jwt.sign(payload, getJwtSecret(), {
     expiresIn: '7d',
   });
 };
@@ -149,7 +151,8 @@ exports.loginFarmer = async (req, res) => {
         });
       }
 
-      const staffToken = generateToken(staff._id, staff.role);
+      const staffCentreId = staff.centreId?._id || staff.centreId;
+      const staffToken = generateToken(staff._id, staff.role, staffCentreId);
       return res.status(200).json({
         success: true,
         message: `${staff.role.charAt(0).toUpperCase() + staff.role.slice(1)} logged in successfully`,
@@ -206,7 +209,8 @@ exports.loginStaff = async (req, res) => {
       });
     }
 
-    const token = generateToken(staff._id, staff.role);
+    const staffCentreId = staff.centreId?._id || staff.centreId;
+    const token = generateToken(staff._id, staff.role, staffCentreId);
 
     return res.status(200).json({
       success: true,

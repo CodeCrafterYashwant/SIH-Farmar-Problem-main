@@ -38,6 +38,16 @@ exports.createProcurement = async (req, res) => {
       });
     }
 
+    // Strict scoping: If user is staff, verify booking belongs to their assigned centre
+    if (req.user?.role === 'staff' && req.user?.centreId) {
+      if (booking.centreId._id.toString() !== req.user.centreId.toString()) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'Access denied: You can only record procurement for your assigned mandi centre.',
+        });
+      }
+    }
+
     const centre = booking.centreId;
     let rate = centre.ratePerKg ? centre.ratePerKg.get(cropType) : null;
 
@@ -207,7 +217,12 @@ exports.getMyPayments = async (req, res) => {
 // GET /api/bookings/today?centreId (Staff views today's scheduled arrivals)
 exports.getTodayBookings = async (req, res) => {
   try {
-    const { centreId } = req.query;
+    let { centreId } = req.query;
+
+    // Strict scoping: If user is staff, enforce their assigned centre
+    if (req.user?.role === 'staff' && req.user?.centreId) {
+      centreId = req.user.centreId.toString();
+    }
 
     if (!centreId) {
       return res.status(400).json({

@@ -13,7 +13,8 @@ import {
   Printer, 
   Scale, 
   BadgeCheck, 
-  ArrowLeft 
+  ArrowLeft,
+  Landmark 
 } from 'lucide-react';
 
 function ProcurementContent() {
@@ -22,6 +23,7 @@ function ProcurementContent() {
   const preselectedBookingId = searchParams.get('bookingId');
 
   const [lang, setLang] = useState('hi');
+  const [user, setUser] = useState(null);
   const [centres, setCentres] = useState([]);
   const [selectedCentreId, setSelectedCentreId] = useState('');
   const [bookings, setBookings] = useState([]);
@@ -53,14 +55,20 @@ function ProcurementContent() {
       router.push('/');
       return;
     }
+    setUser(parsed);
 
     const initCentresAndBookings = async () => {
       try {
         const cRes = await apiRequest('/api/centres');
         if (cRes.centres && cRes.centres.length > 0) {
           setCentres(cRes.centres);
-          const storedCentre = typeof window !== 'undefined' ? localStorage.getItem('sih_selected_centre') : null;
-          const defaultCentre = storedCentre || parsed.centreId?._id || parsed.centreId || cRes.centres[0]._id;
+          let defaultCentre;
+          if (parsed.role === 'staff' && parsed.centreId) {
+            defaultCentre = parsed.centreId?._id || parsed.centreId;
+          } else {
+            const storedCentre = typeof window !== 'undefined' ? localStorage.getItem('sih_selected_centre') : null;
+            defaultCentre = storedCentre || cRes.centres[0]._id;
+          }
           setSelectedCentreId(defaultCentre);
         }
       } catch (err) {
@@ -174,9 +182,14 @@ function ProcurementContent() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {centres.length > 0 && (
+            {user?.role === 'staff' ? (
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 px-3.5 py-2 rounded-xl text-xs font-semibold text-emerald-950 shadow-sm">
+                <Landmark className="w-4 h-4 text-emerald-800 shrink-0" />
+                <span>{lang === 'hi' ? 'उपार्जन केंद्र:' : 'Mandi Centre:'} <strong className="text-emerald-900 font-data">{user.centreId?.name || centres.find(c => c._id === selectedCentreId)?.name || 'Mandi'} {user.centreId?.code ? `(${user.centreId.code})` : ''}</strong></span>
+              </div>
+            ) : centres.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-600">{lang === 'hi' ? 'मंडी केंद्र:' : 'Mandi:'}</span>
+                <span className="text-xs font-medium text-slate-600">{lang === 'hi' ? 'मंडी केंद्र चुनें:' : 'Select Mandi:'}</span>
                 <select
                   value={selectedCentreId}
                   onChange={(e) => setSelectedCentreId(e.target.value)}
