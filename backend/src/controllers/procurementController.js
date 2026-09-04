@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const {
   Booking,
   Procurement,
@@ -115,12 +116,31 @@ exports.markPaymentPaid = async (req, res) => {
       });
     }
 
-    const payment = await Payment.findById(paymentId).populate('farmerId');
+    const cleanId = String(paymentId).trim();
+    let payment = null;
+
+    if (mongoose.Types.ObjectId.isValid(cleanId)) {
+      // 1. Direct Payment _id lookup
+      payment = await Payment.findById(cleanId).populate('farmerId');
+
+      // 2. Lookup by Procurement / Voucher ID
+      if (!payment) {
+        payment = await Payment.findOne({ procurementId: cleanId }).populate('farmerId');
+      }
+
+      // 3. Lookup by Booking ID
+      if (!payment) {
+        const procurement = await Procurement.findOne({ bookingId: cleanId });
+        if (procurement) {
+          payment = await Payment.findOne({ procurementId: procurement._id }).populate('farmerId');
+        }
+      }
+    }
 
     if (!payment) {
       return res.status(404).json({
         error: 'Not Found',
-        message: 'Payment record not found',
+        message: 'Payment record not found for the provided Voucher / Payment ID',
       });
     }
 

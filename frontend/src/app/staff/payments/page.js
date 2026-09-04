@@ -86,6 +86,10 @@ export default function StaffPaymentsPage() {
           ? `भुगतान सफलता दर्ज! यूटीआर संदर्भ: ${utr.trim()} | किसान को एसएमएस/ईमेल प्रेषित।`
           : `Payment recorded successfully! UTR: ${utr.trim()} | Dispatched notification to farmer.`);
         setUtrInputs((prev) => ({ ...prev, [paymentId]: '' }));
+        const mPid = document.getElementById('manualPaymentId');
+        const mUtr = document.getElementById('manualUtr');
+        if (mPid) mPid.value = '';
+        if (mUtr) mUtr.value = '';
         fetchRecords();
       }
     } catch (err) {
@@ -200,51 +204,79 @@ export default function StaffPaymentsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 font-normal">
-                  {procurements.map((p) => (
-                    <tr key={p._id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-3 font-data text-slate-600">
-                        {new Date(p.createdAt).toLocaleDateString('en-IN')}
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className="font-semibold text-slate-900 block text-xs">
-                          {p.farmerId?.name || (lang === 'hi' ? 'किसान' : 'Farmer')}
-                        </span>
-                        <span className="text-[11px] text-slate-500 font-data">
-                          {lang === 'hi' ? 'खाता:' : 'A/C:'} {p.farmerId?.bankAccount?.accountNumber ? `•••• ${p.farmerId.bankAccount.accountNumber.slice(-4)}` : 'Aadhaar DBT'} | {p.farmerId?.bankAccount?.ifscCode || 'IFSC Validated'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className="font-semibold text-slate-900 block">{p.cropType}</span>
-                        <span className="text-[11px] text-slate-600 font-data">{p.quantityKg} kg (Grade {p.qualityGrade})</span>
-                      </td>
-                      <td className="py-3 px-3 text-right font-data font-semibold text-emerald-700 text-sm">
-                        ₹{p.totalAmount?.toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-800 border border-amber-300">
-                          {lang === 'hi' ? 'ट्रेजरी अनुमोदन हेतु तैयार' : 'Ready for Settlement'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <input
-                            type="text"
-                            placeholder={t.enterUtrPlaceholder}
-                            value={utrInputs[p._id] || ''}
-                            onChange={(e) => setUtrInputs({ ...utrInputs, [p._id]: e.target.value })}
-                            className="w-32 px-2 py-1 rounded-lg bg-slate-50 border border-slate-300 text-xs font-data uppercase focus:outline-none focus:border-emerald-600"
-                          />
-                          <button
-                            onClick={() => handleMarkPaid(p._id)}
-                            disabled={processingId === p._id}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-medium text-xs transition-colors"
-                          >
-                            {processingId === p._id ? '...' : t.markPaidBtn}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {procurements.map((p) => {
+                    const isPaid = p.payment?.status === 'Paid';
+                    return (
+                      <tr key={p._id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-3">
+                          <span className="font-data text-slate-600 block">
+                            {new Date(p.createdAt).toLocaleDateString('en-IN')}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-data block tracking-tight">
+                            ID: {p._id}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="font-semibold text-slate-900 block text-xs">
+                            {p.farmerId?.name || (lang === 'hi' ? 'किसान' : 'Farmer')}
+                          </span>
+                          <span className="text-[11px] text-slate-500 font-data">
+                            {lang === 'hi' ? 'खाता:' : 'A/C:'} {p.farmerId?.bankAccount?.accountNumber ? `•••• ${p.farmerId.bankAccount.accountNumber.slice(-4)}` : 'Aadhaar DBT'} | {p.farmerId?.bankAccount?.ifscCode || 'IFSC Validated'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="font-semibold text-slate-900 block">{p.cropType}</span>
+                          <span className="text-[11px] text-slate-600 font-data">{p.quantityKg} kg (Grade {p.qualityGrade})</span>
+                        </td>
+                        <td className="py-3 px-3 text-right font-data font-semibold text-emerald-700 text-sm">
+                          ₹{p.totalAmount?.toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          {isPaid ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                              <span>{lang === 'hi' ? 'भुगतान पूर्ण (DBT Paid)' : 'DBT Settled'}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-800 border border-amber-300">
+                              {lang === 'hi' ? 'ट्रेजरी अनुमोदन हेतु तैयार' : 'Ready for Settlement'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          {isPaid ? (
+                            <div className="flex flex-col items-end">
+                              <span className="text-[11px] font-data font-semibold text-emerald-900 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                                {p.payment?.bankReferenceNumber || 'UTR Cleared'}
+                              </span>
+                              {p.payment?.paidAt && (
+                                <span className="text-[9px] text-slate-400 font-data mt-0.5">
+                                  {new Date(p.payment.paidAt).toLocaleDateString('en-IN')}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <input
+                                type="text"
+                                placeholder={t.enterUtrPlaceholder}
+                                value={utrInputs[p._id] || ''}
+                                onChange={(e) => setUtrInputs({ ...utrInputs, [p._id]: e.target.value })}
+                                className="w-32 px-2 py-1 rounded-lg bg-slate-50 border border-slate-300 text-xs font-data uppercase focus:outline-none focus:border-emerald-600"
+                              />
+                              <button
+                                onClick={() => handleMarkPaid(p._id)}
+                                disabled={processingId === p._id}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-medium text-xs transition-colors"
+                              >
+                                {processingId === p._id ? '...' : t.markPaidBtn}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

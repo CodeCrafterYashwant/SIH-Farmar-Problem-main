@@ -351,14 +351,28 @@ exports.getReports = async (req, res) => {
     }
 
     const procurements = await Procurement.find(dateFilter)
-      .populate('farmerId', 'name mobile village district')
+      .populate('farmerId', 'name mobile village district bankAccount')
       .populate('bookingId')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Attach payment status and UTR details
+    const procurementIds = procurements.map((p) => p._id);
+    const payments = await Payment.find({ procurementId: { $in: procurementIds } }).lean();
+    const paymentMap = new Map();
+    payments.forEach((pay) => {
+      paymentMap.set(String(pay.procurementId), pay);
+    });
+
+    const procurementsWithPayment = procurements.map((p) => ({
+      ...p,
+      payment: paymentMap.get(String(p._id)) || null,
+    }));
 
     return res.status(200).json({
       success: true,
-      count: procurements.length,
-      procurements,
+      count: procurementsWithPayment.length,
+      procurements: procurementsWithPayment,
     });
   } catch (error) {
     console.error('Reports error:', error);
