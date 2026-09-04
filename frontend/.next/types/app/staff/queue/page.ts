@@ -1,4 +1,4 @@
-// File: C:\Users\Yashwant Namdev\Desktop\SIH\frontend\src\app\staff\queue\page.js
+// File: C:\Users\Yashwant Namdev\Desktop\SIH-Farmar-Problem-main\frontend\src\app\staff\queue\page.js
 import * as entry from '../../../../../src/app/staff/queue/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
