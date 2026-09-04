@@ -48,7 +48,8 @@ export default function StaffTodayPage() {
         const res = await apiRequest('/api/centres');
         if (res.centres && res.centres.length > 0) {
           setCentres(res.centres);
-          const defaultCentre = parsedUser.centreId?._id || parsedUser.centreId || res.centres[0]._id;
+          const storedCentre = typeof window !== 'undefined' ? localStorage.getItem('sih_selected_centre') : null;
+          const defaultCentre = storedCentre || parsedUser.centreId?._id || parsedUser.centreId || res.centres[0]._id;
           setSelectedCentreId(defaultCentre);
         }
       } catch (err) {
@@ -83,6 +84,9 @@ export default function StaffTodayPage() {
 
   useEffect(() => {
     if (selectedCentreId) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sih_selected_centre', selectedCentreId);
+      }
       fetchTodayBookings(selectedCentreId);
     }
   }, [selectedCentreId]);
@@ -212,7 +216,13 @@ export default function StaffTodayPage() {
                           {b.tokenNumber}
                         </span>
                         <span className={`px-2 py-0.5 rounded-lg text-[11px] font-medium ${
-                          isBooked ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-950 border border-emerald-200'
+                          b.status === 'Booked'
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : b.status === 'Procured'
+                            ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                            : b.status === 'Serving'
+                            ? 'bg-blue-100 text-blue-950 border border-blue-300'
+                            : 'bg-emerald-50 text-emerald-900 border border-emerald-200'
                         }`}>
                           {b.status} {b.queuePosition ? `(#${b.queuePosition})` : ''}
                         </span>
@@ -233,7 +243,7 @@ export default function StaffTodayPage() {
                     </div>
 
                     <div>
-                      {isBooked ? (
+                      {b.status === 'Booked' ? (
                         <button
                           onClick={() => handleCheckin(b._id)}
                           disabled={checkingInId === b._id}
@@ -242,10 +252,20 @@ export default function StaffTodayPage() {
                           <CheckCircle2 className="w-4 h-4" />
                           <span>{checkingInId === b._id ? (lang === 'hi' ? 'चेक-इन जारी...' : 'Checking In...') : t.checkInBtn}</span>
                         </button>
+                      ) : b.status === 'Procured' ? (
+                        <div className="text-xs font-semibold text-emerald-900 bg-emerald-100 border border-emerald-300 px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-sm">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                          <span>{lang === 'hi' ? 'उपार्जन पूर्ण (Procured & Weighed)' : 'Procured & Weighed'}</span>
+                        </div>
+                      ) : b.status === 'Serving' ? (
+                        <div className="text-xs font-semibold text-blue-900 bg-blue-100 border border-blue-300 px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-sm">
+                          <CheckCircle2 className="w-4 h-4 text-blue-700" />
+                          <span>{lang === 'hi' ? `कांटा पटल पर उपस्थित ${b.queuePosition ? `(#${b.queuePosition})` : ''}` : `At Scale ${b.queuePosition ? `(#${b.queuePosition})` : ''}`}</span>
+                        </div>
                       ) : (
                         <div className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded-xl flex items-center gap-1">
                           <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                          <span>{lang === 'hi' ? `आगमन सत्यापित (कांटा क्रम #${b.queuePosition})` : `Arrival Verified (Queue #${b.queuePosition})`}</span>
+                          <span>{lang === 'hi' ? `आगमन सत्यापित (कांटा क्रम #${b.queuePosition || 1})` : `Arrival Verified (Queue #${b.queuePosition || 1})`}</span>
                         </div>
                       )}
                     </div>

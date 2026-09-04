@@ -48,7 +48,8 @@ export default function StaffQueuePage() {
         const res = await apiRequest('/api/centres');
         if (res.centres && res.centres.length > 0) {
           setCentres(res.centres);
-          const defaultCentre = parsedUser.centreId?._id || parsedUser.centreId || res.centres[0]._id;
+          const storedCentre = typeof window !== 'undefined' ? localStorage.getItem('sih_selected_centre') : null;
+          const defaultCentre = storedCentre || parsedUser.centreId?._id || parsedUser.centreId || res.centres[0]._id;
           setSelectedCentreId(defaultCentre);
         }
       } catch (err) {
@@ -79,6 +80,9 @@ export default function StaffQueuePage() {
 
   useEffect(() => {
     if (selectedCentreId) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sih_selected_centre', selectedCentreId);
+      }
       fetchLiveQueue(selectedCentreId);
       const interval = setInterval(() => {
         fetchLiveQueue(selectedCentreId);
@@ -242,7 +246,7 @@ export default function StaffQueuePage() {
                     className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs"
                   >
                     <div className="flex items-center gap-2.5">
-                      <span className="w-6 h-6 rounded-lg bg-emerald-800 text-white flex items-center justify-center font-data font-semibold text-xs">
+                      <span className="w-6 h-6 rounded-lg bg-emerald-800 text-white flex items-center justify-center font-data font-semibold text-xs shrink-0">
                         #{item.queuePosition}
                       </span>
                       <div>
@@ -250,15 +254,29 @@ export default function StaffQueuePage() {
                         <span className="text-[11px] text-slate-500">{item.farmerName}</span>
                       </div>
                     </div>
-                    <span className="text-[10px] font-medium text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-                      {lang === 'hi' ? 'प्रतीक्षारत' : 'Waiting'}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-medium text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                        {lang === 'hi' ? 'प्रतीक्षारत' : 'Waiting'}
+                      </span>
+                      <Link
+                        href={`/staff/procurement?bookingId=${item.bookingId}`}
+                        className="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-[10px] font-semibold transition-colors flex items-center gap-0.5 shadow-sm"
+                      >
+                        <span>{lang === 'hi' ? 'तौल करें' : 'Weigh'} →</span>
+                      </Link>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="py-16 text-center text-slate-400 text-xs">
-                {lang === 'hi' ? 'कोई किसान प्रतीक्षारत नहीं है।' : 'No farmers in waiting queue.'}
+              <div className="py-12 text-center text-slate-500 text-xs">
+                <p className="mb-2 font-medium">{lang === 'hi' ? 'वर्तमान में कोई किसान प्रतीक्षारत नहीं है।' : 'No farmers currently in waiting queue.'}</p>
+                <Link
+                  href="/staff/today"
+                  className="inline-flex items-center gap-1 text-emerald-800 font-semibold hover:underline text-xs"
+                >
+                  <span>{lang === 'hi' ? 'गेट पास पर आगमन चेक-इन करें →' : 'Gate Arrivals Check-In →'}</span>
+                </Link>
               </div>
             )}
           </div>

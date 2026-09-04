@@ -22,6 +22,8 @@ function ProcurementContent() {
   const preselectedBookingId = searchParams.get('bookingId');
 
   const [lang, setLang] = useState('hi');
+  const [centres, setCentres] = useState([]);
+  const [selectedCentreId, setSelectedCentreId] = useState('');
   const [bookings, setBookings] = useState([]);
   const [selectedBookingId, setSelectedBookingId] = useState(preselectedBookingId || '');
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -51,29 +53,46 @@ function ProcurementContent() {
       router.push('/');
       return;
     }
-    const centreId = parsed.centreId?._id || parsed.centreId;
 
-    const fetchEligibleBookings = async () => {
+    const initCentresAndBookings = async () => {
       try {
-        if (!centreId) {
-          const cRes = await apiRequest('/api/centres');
-          if (cRes.centres && cRes.centres.length > 0) {
-            const bRes = await apiRequest(`/api/bookings/today?centreId=${cRes.centres[0]._id}`);
-            if (bRes.bookings) setBookings(bRes.bookings);
-          }
-        } else {
-          const res = await apiRequest(`/api/bookings/today?centreId=${centreId}`);
-          if (res.bookings) setBookings(res.bookings);
+        const cRes = await apiRequest('/api/centres');
+        if (cRes.centres && cRes.centres.length > 0) {
+          setCentres(cRes.centres);
+          const storedCentre = typeof window !== 'undefined' ? localStorage.getItem('sih_selected_centre') : null;
+          const defaultCentre = storedCentre || parsed.centreId?._id || parsed.centreId || cRes.centres[0]._id;
+          setSelectedCentreId(defaultCentre);
         }
       } catch (err) {
-        console.error('Failed to load bookings:', err);
+        console.error('Failed to load centres:', err);
       }
     };
 
-    fetchEligibleBookings();
+    initCentresAndBookings();
 
     return () => window.removeEventListener('languageChange', handleLangChange);
   }, []);
+
+  const fetchBookingsForCentre = async (cId) => {
+    if (!cId) return;
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sih_selected_centre', cId);
+      }
+      const bRes = await apiRequest(`/api/bookings/today?centreId=${cId}`);
+      if (bRes.bookings) {
+        setBookings(bRes.bookings);
+      }
+    } catch (err) {
+      console.error('Failed to load bookings:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedCentreId) {
+      fetchBookingsForCentre(selectedCentreId);
+    }
+  }, [selectedCentreId]);
 
   const t = translations[lang] || translations.hi;
 
@@ -154,9 +173,27 @@ function ProcurementContent() {
               {t.staffProcSub}
             </p>
           </div>
-          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 px-3.5 py-2 rounded-xl text-xs font-medium text-emerald-900">
-            <BadgeCheck className="w-4 h-4 text-emerald-700" />
-            <span>{lang === 'hi' ? 'एमएसपी गारंटीड खरीद' : 'Guaranteed MSP Procurement'}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            {centres.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-600">{lang === 'hi' ? 'मंडी केंद्र:' : 'Mandi:'}</span>
+                <select
+                  value={selectedCentreId}
+                  onChange={(e) => setSelectedCentreId(e.target.value)}
+                  className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:border-emerald-600"
+                >
+                  {centres.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name} ({c.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 px-3.5 py-2 rounded-xl text-xs font-medium text-emerald-900">
+              <BadgeCheck className="w-4 h-4 text-emerald-700" />
+              <span>{lang === 'hi' ? 'एमएसपी गारंटीड खरीद' : 'Guaranteed MSP Procurement'}</span>
+            </div>
           </div>
         </div>
 
@@ -295,11 +332,15 @@ function ProcurementContent() {
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-sm font-medium text-slate-900 focus:outline-none focus:border-emerald-600"
               >
                 <option value="">{lang === 'hi' ? '-- टोकन / किसान का चयन करें --' : '-- Select Arrived Farmer Token --'}</option>
-                {bookings.map((b) => (
-                  <option key={b._id} value={b._id}>
-                    {b.tokenNumber} — {b.farmerId?.name} ({lang === 'hi' ? 'गांव' : 'Village'}: {b.farmerId?.village || (lang === 'hi' ? 'मध्य प्रदेश' : 'MP')}) [{b.status}]
-                  </option>
-                ))}
+                {bookings.map((b) => {
+                  const isReady = b.status === 'CheckedIn' || b.status === 'Serving';
+                  const isProcured = b.status === 'Procured';
+                  return (
+                    <option key={b._id} value={b._id} disabled={isProcured}>
+                      {isReady ? '⭐ ' : isProcured ? '✓ ' : ''}{b.tokenNumber} — {b.farmerId?.name} ({lang === 'hi' ? 'गांव' : 'Village'}: {b.farmerId?.village || (lang === 'hi' ? 'मध्य प्रदेश' : 'MP')}) [{isReady ? (lang === 'hi' ? 'कांटे पर उपस्थित' : 'Arrived at Scale') : isProcured ? (lang === 'hi' ? 'तौल पूर्ण' : 'Procured') : b.status}]
+                    </option>
+                  );
+                })}
               </select>
             </div>
 

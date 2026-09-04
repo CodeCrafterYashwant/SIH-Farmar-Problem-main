@@ -224,11 +224,14 @@ exports.getTodayBookings = async (req, res) => {
 
     const bookings = await Booking.find({
       centreId,
-      createdAt: { $gte: startOfDay, $lte: endOfDay },
+      $or: [
+        { status: { $in: ['CheckedIn', 'Serving'] } },
+        { createdAt: { $gte: startOfDay, $lte: endOfDay } },
+      ],
     })
       .populate('farmerId', 'name mobile village bankAccount')
       .populate('slotId', 'startTime endTime')
-      .sort({ tokenNumber: 1 });
+      .sort({ queuePosition: 1, createdAt: -1 });
 
     return res.status(200).json({
       success: true,

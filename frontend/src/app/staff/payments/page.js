@@ -148,13 +148,13 @@ export default function StaffPaymentsPage() {
               type="text"
               placeholder={lang === 'hi' ? 'भुगतान वाउचर आईडी (Payment Voucher ID)' : 'Payment Voucher ID'}
               id="manualPaymentId"
-              className="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-data font-medium text-slate-900 focus:outline-none focus:border-emerald-600"
+              className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-400 text-xs font-data font-bold text-slate-950 placeholder:text-slate-500 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 shadow-inner"
             />
             <input
               type="text"
               placeholder={lang === 'hi' ? 'बैंक यूटीआर संख्या (उदा. UTR2026090400123)' : 'Bank UTR Ref (e.g. UTR2026090400123)'}
               id="manualUtr"
-              className="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-data font-semibold text-slate-900 uppercase focus:outline-none focus:border-emerald-600"
+              className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-400 text-xs font-data font-bold text-slate-950 uppercase placeholder:text-slate-500 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 shadow-inner"
             />
             <button
               onClick={() => {
@@ -262,12 +262,12 @@ export default function StaffPaymentsPage() {
                                 placeholder={t.enterUtrPlaceholder}
                                 value={utrInputs[p._id] || ''}
                                 onChange={(e) => setUtrInputs({ ...utrInputs, [p._id]: e.target.value })}
-                                className="w-32 px-2 py-1 rounded-lg bg-slate-50 border border-slate-300 text-xs font-data uppercase focus:outline-none focus:border-emerald-600"
+                                className="w-36 sm:w-44 px-3 py-1.5 rounded-lg bg-white border border-slate-400 text-xs font-data font-bold text-slate-950 uppercase placeholder:text-slate-500 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 shadow-inner"
                               />
                               <button
                                 onClick={() => handleMarkPaid(p._id)}
                                 disabled={processingId === p._id}
-                                className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-medium text-xs transition-colors"
+                                className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs transition-colors shrink-0 shadow-sm"
                               >
                                 {processingId === p._id ? '...' : t.markPaidBtn}
                               </button>
