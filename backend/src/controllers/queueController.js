@@ -199,6 +199,7 @@ exports.getLiveQueue = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: snapshot,
+      ...snapshot,
     });
   } catch (error) {
     console.error('Get live queue error:', error);

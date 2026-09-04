@@ -76,7 +76,8 @@ export default function StaffQueuePage() {
 
     try {
       const res = await apiRequest(`/api/queue/live?centreId=${targetCentre}`);
-      setQueueData(res);
+      const data = res?.data || res;
+      setQueueData(data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -92,7 +93,7 @@ export default function StaffQueuePage() {
       fetchLiveQueue(selectedCentreId);
       const interval = setInterval(() => {
         fetchLiveQueue(selectedCentreId);
-      }, 8000);
+      }, 3000);
       return () => clearInterval(interval);
     }
   }, [selectedCentreId]);
@@ -110,9 +111,11 @@ export default function StaffQueuePage() {
       });
 
       if (res.success) {
+        const farmerName = res.booking?.farmerName || res.serving?.farmerName || 'Farmer';
+        const tokenNo = res.booking?.tokenNumber || res.serving?.tokenNumber || '';
         setMessage(lang === 'hi'
-          ? `किसान '${res.booking.farmerName}' [टोकन: ${res.booking.tokenNumber}] को कांटे पर बुलाया गया!`
-          : `Farmer '${res.booking.farmerName}' [Token: ${res.booking.tokenNumber}] called to weighbridge scale!`);
+          ? `किसान '${farmerName}' [टोकन: ${tokenNo}] को कांटे पर बुलाया गया!`
+          : `Farmer '${farmerName}' [Token: ${tokenNo}] called to weighbridge scale!`);
         fetchLiveQueue(selectedCentreId);
       }
     } catch (err) {
