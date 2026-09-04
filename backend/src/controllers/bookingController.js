@@ -1,4 +1,4 @@
-const { Booking, Slot, Farmer, ProcurementCentre } = require('../models');
+const { Booking, Slot, Farmer, ProcurementCentre, Procurement, Payment } = require('../models');
 const { sendEmail } = require('../services/email.service');
 
 // Helper to generate a unique token number
@@ -137,12 +137,53 @@ exports.getMyBookings = async (req, res) => {
     const bookings = await Booking.find({ farmerId })
       .populate('centreId', 'name code district state cropTypesHandled ratePerKg')
       .populate('slotId', 'date startTime endTime maxCapacity bookedCount')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const bookingIds = bookings.map((b) => b._id);
+    const procurements = await Procurement.find({ bookingId: { $in: bookingIds } }).lean();
+
+    const procurementMap = {};
+    const procurementIds = [];
+    procurements.forEach((p) => {
+      procurementMap[p.bookingId.toString()] = p;
+      procurementIds.push(p._id);
+    });
+
+    const payments = await Payment.find({ procurementId: { $in: procurementIds } }).lean();
+    const paymentMap = {};
+    payments.forEach((pay) => {
+      paymentMap[pay.procurementId.toString()] = pay;
+    });
+
+    const enrichedBookings = bookings.map((b) => {
+      const proc = procurementMap[b._id.toString()] || null;
+      let payment = null;
+      if (proc) {
+        payment = paymentMap[proc._id.toString()] || null;
+      }
+      return {
+        ...b,
+        procurement: proc
+          ? {
+              ...proc,
+              payment: payment
+                ? {
+                    status: payment.status,
+                    bankReferenceNumber: payment.bankReferenceNumber,
+                    paidAt: payment.paidAt,
+                    amount: payment.amount,
+                  }
+                : null,
+            }
+          : null,
+      };
+    });
 
     return res.status(200).json({
       success: true,
-      count: bookings.length,
-      bookings,
+      count: enrichedBookings.length,
+      bookings: enrichedBookings,
     });
   } catch (error) {
     console.error('Get my bookings error:', error);
