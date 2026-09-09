@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiRequest } from '../../utils/api';
 import { translations, getStoredLang } from '../../utils/translations';
-import { MapPin, Calendar, Wheat, Search, ArrowRight, Activity, ShieldCheck, Building2, Filter } from 'lucide-react';
+import { MapPin, Calendar, Wheat, Search, ArrowRight, Activity, ShieldCheck, Building2, Filter, Star, MessageSquare, X } from 'lucide-react';
 
 export default function CentresPage() {
   const [lang, setLang] = useState('hi');
@@ -13,6 +13,11 @@ export default function CentresPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('ALL');
   const [selectedCrop, setSelectedCrop] = useState('ALL');
+
+  // Reviews Modal State
+  const [reviewsModalCentre, setReviewsModalCentre] = useState(null);
+  const [centreReviewsLoading, setCentreReviewsLoading] = useState(false);
+  const [centreReviewsData, setCentreReviewsData] = useState(null);
 
   useEffect(() => {
     setLang(getStoredLang());
@@ -37,6 +42,22 @@ export default function CentresPage() {
   }, []);
 
   const t = translations[lang] || translations.hi;
+
+  const handleOpenReviews = async (centre) => {
+    setReviewsModalCentre(centre);
+    setCentreReviewsLoading(true);
+    setCentreReviewsData(null);
+    try {
+      const res = await apiRequest(`/api/reviews/centre/${centre._id}`);
+      if (res.success) {
+        setCentreReviewsData(res);
+      }
+    } catch (err) {
+      console.error('Failed to load centre reviews:', err);
+    } finally {
+      setCentreReviewsLoading(false);
+    }
+  };
 
   // Extract unique districts
   const districts = Array.from(new Set(centres.map((c) => c.district).filter(Boolean)));
@@ -167,9 +188,33 @@ export default function CentresPage() {
 
                   {/* Card Body */}
                   <div className="p-5">
-                    <h3 className="font-display text-base font-bold text-blue-950 mb-2">
-                      {c.name}
-                    </h3>
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <h3 className="font-display text-base font-bold text-blue-950">
+                        {c.name}
+                      </h3>
+                    </div>
+
+                    {/* Star Rating & Reviews Badge */}
+                    <div className="flex items-center gap-2 mb-3">
+                      {c.totalReviews > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenReviews(c)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold hover:bg-amber-100 transition-colors shadow-2xs"
+                        >
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                          <span className="font-data font-black">{c.averageRating ? c.averageRating.toFixed(1) : '5.0'}</span>
+                          <span className="text-[10px] text-amber-800 font-normal">
+                            ({c.totalReviews} {lang === 'hi' ? 'समीक्षाएं' : 'reviews'})
+                          </span>
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 text-[11px] font-medium">
+                          <Star className="w-3 h-3 text-slate-400" />
+                          <span>{lang === 'hi' ? 'नया केंद्र (कोई रेटिंग नहीं)' : 'New Centre (No ratings yet)'}</span>
+                        </span>
+                      )}
+                    </div>
 
                     <div className="space-y-3 text-xs">
                       <div>
@@ -206,14 +251,27 @@ export default function CentresPage() {
                 </div>
 
                 {/* Card Actions */}
-                <div className="bg-slate-50 border-t border-slate-200 p-4 flex items-center justify-between gap-3">
-                  <Link
-                    href={`/queue/${c._id}`}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-blue-950 hover:text-blue-800"
-                  >
-                    <Activity className="w-3.5 h-3.5 text-blue-900" />
-                    <span>{lang === 'hi' ? 'लाइव कांटा पंक्ति' : 'Live Queue'}</span>
-                  </Link>
+                <div className="bg-slate-50 border-t border-slate-200 p-4 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/queue/${c._id}`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-blue-950 hover:text-blue-800"
+                    >
+                      <Activity className="w-3.5 h-3.5 text-blue-900" />
+                      <span>{lang === 'hi' ? 'लाइव कांटा पंक्ति' : 'Live Queue'}</span>
+                    </Link>
+
+                    {c.totalReviews > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenReviews(c)}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 hover:text-amber-950 underline underline-offset-2 ml-1"
+                      >
+                        <MessageSquare className="w-3 h-3" />
+                        <span>{lang === 'hi' ? 'समीक्षाएं' : 'Reviews'}</span>
+                      </button>
+                    )}
+                  </div>
 
                   <Link
                     href={`/centres/${c._id}/book`}
@@ -228,6 +286,150 @@ export default function CentresPage() {
           </div>
         )}
       </div>
+
+      {/* Farmer Reviews & Ratings Modal */}
+      {reviewsModalCentre && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-slate-50 p-4 px-6 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">
+                  {lang === 'hi' ? 'किसान अनुभव एवं सेवा समीक्षा' : 'Farmer Weighment & Service Reviews'}
+                </span>
+                <h3 className="font-display text-base font-bold text-blue-950">
+                  {reviewsModalCentre.name}
+                </h3>
+                <span className="text-xs text-slate-500">
+                  {reviewsModalCentre.district}, {reviewsModalCentre.state}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReviewsModalCentre(null)}
+                className="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5">
+              {centreReviewsLoading ? (
+                <div className="py-12 text-center text-slate-500">
+                  <div className="w-7 h-7 border-2 border-blue-950 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <span className="text-xs font-bold">{lang === 'hi' ? 'समीक्षाएं लोड हो रही हैं...' : 'Loading reviews...'}</span>
+                </div>
+              ) : centreReviewsData ? (
+                <>
+                  {/* Rating Overview Summary */}
+                  <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 flex items-center gap-6">
+                    <div className="text-center shrink-0">
+                      <span className="font-data text-4xl font-black text-slate-900 block">
+                        {centreReviewsData.centre?.averageRating?.toFixed(1) || '0.0'}
+                      </span>
+                      <div className="flex items-center justify-center text-amber-400 my-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-3.5 h-3.5 ${s <= Math.round(centreReviewsData.centre?.averageRating || 0) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-[10px] text-slate-600 font-bold block">
+                        {centreReviewsData.centre?.totalReviews || 0} {lang === 'hi' ? 'कुल रेटिंग' : 'Total Ratings'}
+                      </span>
+                    </div>
+
+                    {/* Breakdown Bars */}
+                    <div className="flex-1 space-y-1 text-[11px]">
+                      {[5, 4, 3, 2, 1].map((stars) => {
+                        const count = centreReviewsData.distribution ? (centreReviewsData.distribution[stars] || 0) : 0;
+                        const total = centreReviewsData.centre?.totalReviews || 1;
+                        const pct = total > 0 ? (count / total) * 100 : 0;
+                        return (
+                          <div key={stars} className="flex items-center gap-2">
+                            <span className="w-4 font-bold text-slate-600">{stars}★</span>
+                            <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }}></div>
+                            </div>
+                            <span className="w-5 text-right text-slate-500 font-data">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Reviews List */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">
+                      {lang === 'hi' ? 'हाल की किसान टिप्पणियां' : 'Recent Farmer Comments'}
+                    </h4>
+
+                    {centreReviewsData.reviews && centreReviewsData.reviews.length > 0 ? (
+                      <div className="space-y-3">
+                        {centreReviewsData.reviews.map((rev) => (
+                          <div key={rev._id} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-xs text-slate-900">{rev.farmerName}</span>
+                                {rev.farmerVillage && (
+                                  <span className="text-[10px] text-slate-500 bg-slate-200/80 px-1.5 py-0.5 rounded">
+                                    {rev.farmerVillage}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center text-amber-400">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <Star
+                                    key={s}
+                                    className={`w-3 h-3 ${s <= rev.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+
+                            {rev.comment && (
+                              <p className="text-xs text-slate-700 italic">
+                                "{rev.comment}"
+                              </p>
+                            )}
+
+                            <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                              {rev.cropType && <span>{lang === 'hi' ? 'फसल:' : 'Crop:'} {rev.cropType}</span>}
+                              <span>{new Date(rev.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-8 text-center text-slate-400 text-xs">
+                        {lang === 'hi' ? 'इस केंद्र हेतु अभी तक कोई समीक्षा दर्ज नहीं हुई है।' : 'No written reviews submitted for this centre yet.'}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="py-8 text-center text-slate-400 text-xs">
+                  {lang === 'hi' ? 'समीक्षा विवरण उपलब्ध नहीं है' : 'Unable to load reviews'}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 p-3 px-6 border-t border-slate-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setReviewsModalCentre(null)}
+                className="px-4 py-1.5 rounded-lg bg-blue-950 text-white text-xs font-bold hover:bg-blue-900 transition-colors"
+              >
+                {lang === 'hi' ? 'बंद करें' : 'Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -214,7 +214,7 @@ export default function AdminReportsPage() {
                     <td className="py-3 px-3 text-slate-600">{p.farmerId?.village || (lang === 'hi' ? 'मध्य प्रदेश' : 'Madhya Pradesh')}</td>
                     <td className="py-3 px-3 font-medium text-slate-900">{p.cropType}</td>
                     <td className="py-3 px-3 text-right font-data font-semibold text-slate-900">{p.quantityKg}</td>
-                    <td className="py-3 px-3 text-center font-data">{p.moisturePercent}%</td>
+                    <td className="py-3 px-3 text-center font-data font-semibold text-slate-900">{p.moisturePercent}%</td>
                     <td className="py-3 px-3 text-center font-medium text-emerald-800">Grade {p.qualityGrade}</td>
                     <td className="py-3 px-3 text-right font-data text-slate-600">₹{p.ratePerKg}</td>
                     <td className="py-3 px-3 text-right font-data font-semibold text-emerald-700 text-sm">

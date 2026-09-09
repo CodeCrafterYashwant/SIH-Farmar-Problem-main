@@ -140,31 +140,19 @@ exports.loginFarmer = async (req, res) => {
       });
     }
 
-    // Universal SSO Fallback: Check if user is Staff or Admin
+    // Cross-portal check: If user entered Staff or Admin credentials in Farmer Login
     const staff = await Staff.findOne({ username: loginId.toLowerCase() }).populate('centreId');
     if (staff) {
       const isStaffMatch = await staff.comparePassword(password);
-      if (!isStaffMatch) {
-        return res.status(401).json({
-          error: 'Authentication Failed',
-          message: 'Invalid credentials',
+      if (isStaffMatch) {
+        const targetSection = staff.role === 'admin' ? 'Admin' : 'Staff';
+        return res.status(403).json({
+          error: 'Incorrect Login Section',
+          code: staff.role === 'admin' ? 'USE_ADMIN_SECTION' : 'USE_STAFF_SECTION',
+          targetRole: staff.role,
+          message: `This account belongs to ${staff.role === 'admin' ? 'Administrator' : 'Mandi Staff'}. Please login from the ${targetSection} section only.`,
         });
       }
-
-      const staffCentreId = staff.centreId?._id || staff.centreId;
-      const staffToken = generateToken(staff._id, staff.role, staffCentreId);
-      return res.status(200).json({
-        success: true,
-        message: `${staff.role.charAt(0).toUpperCase() + staff.role.slice(1)} logged in successfully`,
-        token: staffToken,
-        user: {
-          id: staff._id,
-          name: staff.name,
-          username: staff.username,
-          role: staff.role,
-          centreId: staff.centreId,
-        },
-      });
     }
 
     return res.status(401).json({
@@ -183,7 +171,7 @@ exports.loginFarmer = async (req, res) => {
 // POST /api/auth/staff-login (Staff / Admin Login)
 exports.loginStaff = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, expectedRole } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({
@@ -195,6 +183,22 @@ exports.loginStaff = async (req, res) => {
     const staff = await Staff.findOne({ username: username.toLowerCase() }).populate('centreId');
 
     if (!staff) {
+      // Cross-portal check: If user entered Farmer credentials in Staff/Admin login
+      const farmer = await Farmer.findOne({
+        $or: [{ email: username.toLowerCase() }, { mobile: username }],
+      });
+      if (farmer) {
+        const isFarmerMatch = await farmer.comparePassword(password);
+        if (isFarmerMatch) {
+          return res.status(403).json({
+            error: 'Incorrect Login Section',
+            code: 'USE_FARMER_SECTION',
+            targetRole: 'farmer',
+            message: 'This account is registered as a Farmer. Please login from the Farmer section only.',
+          });
+        }
+      }
+
       return res.status(401).json({
         error: 'Authentication Failed',
         message: 'Invalid username or password',
@@ -206,6 +210,25 @@ exports.loginStaff = async (req, res) => {
       return res.status(401).json({
         error: 'Authentication Failed',
         message: 'Invalid username or password',
+      });
+    }
+
+    // Role check between Staff and Admin
+    if (expectedRole === 'admin' && staff.role !== 'admin') {
+      return res.status(403).json({
+        error: 'Incorrect Login Section',
+        code: 'USE_STAFF_SECTION',
+        targetRole: 'staff',
+        message: 'This account belongs to Mandi Staff. Please login from the Staff section only.',
+      });
+    }
+
+    if (expectedRole === 'staff' && staff.role === 'admin') {
+      return res.status(403).json({
+        error: 'Incorrect Login Section',
+        code: 'USE_ADMIN_SECTION',
+        targetRole: 'admin',
+        message: 'This account belongs to Administrator. Please login from the Admin section only.',
       });
     }
 

@@ -290,7 +290,7 @@ function ProcurementContent() {
                     <tr>
                       <td className="py-2.5 px-3 font-medium text-slate-900">{successData.procurement?.cropType}</td>
                       <td className="py-2.5 px-3 text-center font-medium text-emerald-800">Grade {successData.procurement?.qualityGrade}</td>
-                      <td className="py-2.5 px-3 text-center font-data">{successData.procurement?.moisturePercent}%</td>
+                      <td className="py-2.5 px-3 text-center font-data font-semibold text-slate-900">{successData.procurement?.moisturePercent}%</td>
                       <td className="py-2.5 px-3 text-right font-data font-semibold">{successData.procurement?.quantityKg} kg</td>
                       <td className="py-2.5 px-3 text-right font-data">₹{successData.procurement?.ratePerKg}</td>
                     </tr>

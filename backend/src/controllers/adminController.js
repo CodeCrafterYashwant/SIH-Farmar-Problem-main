@@ -71,6 +71,76 @@ exports.getCentres = async (req, res) => {
   }
 };
 
+// PUT /api/centres/:id (Admin updates Procurement Centre details and MSP rates)
+exports.updateCentre = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, code, district, state, cropTypesHandled, ratePerKg } = req.body;
+
+    const centre = await ProcurementCentre.findById(id);
+    if (!centre) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Procurement centre not found',
+      });
+    }
+
+    if (name) centre.name = name;
+    if (code) centre.code = code.toUpperCase();
+    if (district) centre.district = district;
+    if (state) centre.state = state;
+    if (cropTypesHandled) centre.cropTypesHandled = cropTypesHandled;
+    if (ratePerKg) {
+      centre.ratePerKg = ratePerKg;
+    }
+
+    await centre.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Procurement centre updated successfully',
+      centre,
+    });
+  } catch (error) {
+    console.error('Update centre error:', error);
+    return res.status(500).json({
+      error: 'Failed to update centre',
+      message: error.message,
+    });
+  }
+};
+
+// DELETE /api/centres/:id (Admin deletes Procurement Centre)
+exports.deleteCentre = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const centre = await ProcurementCentre.findById(id);
+    if (!centre) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Procurement centre not found',
+      });
+    }
+
+    // Safely unassign any staff assigned to this deleted mandi centre
+    await Staff.updateMany({ centreId: id }, { centreId: null });
+
+    await ProcurementCentre.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: `Procurement centre '${centre.name}' deleted successfully`,
+    });
+  } catch (error) {
+    console.error('Delete centre error:', error);
+    return res.status(500).json({
+      error: 'Failed to delete centre',
+      message: error.message,
+    });
+  }
+};
+
 // POST /api/staff (Admin creates staff accounts linked to centre)
 exports.createStaff = async (req, res) => {
   try {
@@ -127,6 +197,64 @@ exports.createStaff = async (req, res) => {
     console.error('Create staff error:', error);
     return res.status(500).json({
       error: 'Failed to create staff account',
+      message: error.message,
+    });
+  }
+};
+
+// GET /api/staff (Admin views all staff accounts)
+exports.getStaff = async (req, res) => {
+  try {
+    const staffList = await Staff.find()
+      .select('-password')
+      .populate('centreId', 'name code district state')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: staffList.length,
+      staff: staffList,
+    });
+  } catch (error) {
+    console.error('Get staff error:', error);
+    return res.status(500).json({
+      error: 'Failed to fetch staff accounts',
+      message: error.message,
+    });
+  }
+};
+
+// DELETE /api/staff/:id (Admin deletes staff account)
+exports.deleteStaff = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Prevent self-deletion if same user
+    if (req.user && req.user._id && req.user._id.toString() === id) {
+      return res.status(400).json({
+        error: 'Self Deletion Denied',
+        message: 'You cannot delete your own logged-in administrator account.',
+      });
+    }
+
+    const staffMember = await Staff.findById(id);
+    if (!staffMember) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Staff account not found',
+      });
+    }
+
+    await Staff.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: `Staff account '${staffMember.name}' (${staffMember.username}) deleted successfully`,
+    });
+  } catch (error) {
+    console.error('Delete staff error:', error);
+    return res.status(500).json({
+      error: 'Failed to delete staff account',
       message: error.message,
     });
   }

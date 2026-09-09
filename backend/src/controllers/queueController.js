@@ -1,5 +1,6 @@
 const { Booking } = require('../models');
 const { broadcastQueueUpdate } = require('../services/queue.socket');
+const { sendGateCheckinEmail } = require('../services/email.service');
 
 // Helper to construct the current live queue snapshot for a centre
 const fetchLiveQueueSnapshot = async (centreId) => {
@@ -51,7 +52,9 @@ exports.checkinFarmer = async (req, res) => {
     }
 
     const query = bookingId ? { _id: bookingId } : { tokenNumber: tokenNumber.trim().toUpperCase() };
-    const booking = await Booking.findOne(query);
+    const booking = await Booking.findOne(query)
+      .populate('farmerId', 'name email mobile village')
+      .populate('centreId', 'name district state');
 
     if (!booking) {
       return res.status(404).json({
@@ -67,9 +70,11 @@ exports.checkinFarmer = async (req, res) => {
       });
     }
 
+    const centreIdStr = (booking.centreId?._id || booking.centreId).toString();
+
     // Strict scoping: If user is staff, verify booking belongs to their assigned centre
     if (req.user?.role === 'staff' && req.user?.centreId) {
-      if (booking.centreId.toString() !== req.user.centreId.toString()) {
+      if (centreIdStr !== req.user.centreId.toString()) {
         return res.status(403).json({
           error: 'Forbidden',
           message: 'Access denied: You can only check in farmers arriving at your assigned mandi centre.',
@@ -79,7 +84,7 @@ exports.checkinFarmer = async (req, res) => {
 
     // Determine next sequential queue position for this centre
     const lastQueueItem = await Booking.findOne({
-      centreId: booking.centreId,
+      centreId: centreIdStr,
       status: { $in: ['CheckedIn', 'Serving'] },
     }).sort({ queuePosition: -1 });
 
@@ -90,8 +95,22 @@ exports.checkinFarmer = async (req, res) => {
     await booking.save();
 
     // Broadcast updated queue state via Socket.io
-    const snapshot = await fetchLiveQueueSnapshot(booking.centreId);
-    broadcastQueueUpdate(booking.centreId, snapshot);
+    const snapshot = await fetchLiveQueueSnapshot(centreIdStr);
+    broadcastQueueUpdate(centreIdStr, snapshot);
+
+    // Send email notification to farmer for gate check-in
+    if (booking.farmerId?.email) {
+      sendGateCheckinEmail({
+        to: booking.farmerId.email,
+        farmerName: booking.farmerId.name || 'Farmer',
+        tokenNumber: booking.tokenNumber,
+        centreName: booking.centreId?.name || 'Procurement Centre',
+        queuePosition: nextPosition,
+        checkinTime: new Date(),
+      }).catch((emailErr) => {
+        console.error('[Gate Check-In Email Error]:', emailErr.message);
+      });
+    }
 
     return res.status(200).json({
       success: true,

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiRequest } from '../../../utils/api';
 import { translations, getStoredLang } from '../../../utils/translations';
-import { Shield, AlertCircle, Sparkles } from 'lucide-react';
+import { Shield, AlertCircle, Sparkles, ShieldAlert, ArrowRight } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -14,6 +14,14 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('AdminPass123!');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Role Mismatch Modal State
+  const [roleMismatchModal, setRoleMismatchModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    targetSection: '', // 'farmer' | 'staff'
+  });
 
   useEffect(() => {
     setLang(getStoredLang());
@@ -30,17 +38,33 @@ export default function AdminLoginPage() {
     setError(null);
 
     try {
-      let res;
-      try {
-        res = await apiRequest('/api/auth/staff-login', {
-          method: 'POST',
-          body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
+      const res = await apiRequest('/api/auth/staff-login', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          username: username.trim().toLowerCase(), 
+          password,
+          expectedRole: 'admin',
+        }),
+      });
+
+      if (res.user && res.user.role === 'farmer') {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useFarmerNotice,
+          targetSection: 'farmer',
         });
-      } catch (err1) {
-        res = await apiRequest('/api/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ identifier: username.trim().toLowerCase(), password }),
+        return;
+      }
+
+      if (res.user && res.user.role === 'staff') {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useStaffNotice,
+          targetSection: 'staff',
         });
+        return;
       }
 
       if (res && res.token) {
@@ -54,7 +78,23 @@ export default function AdminLoginPage() {
         router.push('/admin/dashboard');
       }
     } catch (err) {
-      setError(err.message || (lang === 'hi' ? 'प्रशासक प्रमाणीकरण विफल।' : 'Admin authentication failed.'));
+      if (err.message && (err.message.includes('Farmer') || err.message.includes('USE_FARMER_SECTION') || err.message.includes('किसान'))) {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useFarmerNotice,
+          targetSection: 'farmer',
+        });
+      } else if (err.message && (err.message.includes('Mandi Staff') || err.message.includes('USE_STAFF_SECTION') || err.message.includes('स्टाफ'))) {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useStaffNotice,
+          targetSection: 'staff',
+        });
+      } else {
+        setError(err.message || (lang === 'hi' ? 'प्रशासक प्रमाणीकरण विफल।' : 'Admin authentication failed.'));
+      }
     } finally {
       setLoading(false);
     }
@@ -131,6 +171,56 @@ export default function AdminLoginPage() {
           </button>
         </form>
       </div>
+
+      {/* Role Mismatch Modal Popup */}
+      {roleMismatchModal.isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full p-6 text-white animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3.5 mb-4">
+              <div className="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  {roleMismatchModal.title}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {t.wrongPortalSub}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 mb-5 leading-relaxed">
+              {roleMismatchModal.message}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setRoleMismatchModal({ ...roleMismatchModal, isOpen: false })}
+                className="px-4 py-2 rounded-xl border border-slate-700 text-slate-300 text-xs font-medium hover:bg-slate-800 transition-colors"
+              >
+                {t.closeBtn}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRoleMismatchModal({ ...roleMismatchModal, isOpen: false });
+                  if (roleMismatchModal.targetSection === 'farmer') {
+                    router.push('/login');
+                  } else {
+                    router.push('/staff/login');
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
+              >
+                <span>{roleMismatchModal.targetSection === 'farmer' ? t.goToFarmerBtn : t.goToStaffBtn}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

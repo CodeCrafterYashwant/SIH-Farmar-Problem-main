@@ -10,4 +10,10 @@ router.get('/', adminController.getCentres);
 // Admin-only centre creation
 router.post('/', authMiddleware, roleMiddleware('admin'), adminController.createCentre);
 
+// Admin-only centre update (MSP rates & details)
+router.put('/:id', authMiddleware, roleMiddleware('admin'), adminController.updateCentre);
+
+// Admin-only centre deletion
+router.delete('/:id', authMiddleware, roleMiddleware('admin'), adminController.deleteCentre);
+
 module.exports = router;

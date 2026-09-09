@@ -2,6 +2,7 @@ const {
   sendBookingConfirmedEmail,
   sendCropProcuredEmail,
   sendPaymentCompletedEmail,
+  sendGateCheckinEmail,
 } = require('../services/email.service');
 const { broadcastQueueUpdate } = require('../services/queue.socket');
 
@@ -150,16 +151,28 @@ async function runPhases567Verification() {
   if (!email2.success) throw new Error('Crop procured email failed');
   console.log('  ✓ Email 2 Triggered: Crop Procured (Quantity, Grade, Amount Payable).');
 
-  // 3. Payment completed
-  const email3 = await sendPaymentCompletedEmail({
+  // 3. Gate check-in confirmed
+  const email3 = await sendGateCheckinEmail({
+    to: 'ramesh.farmer@example.com',
+    farmerName: 'Ramesh Kumar',
+    tokenNumber: 'TKN-20260910-001',
+    centreName: 'Kalyanpur Krishi Mandi',
+    queuePosition: 2,
+    checkinTime: new Date(),
+  });
+  if (!email3.success) throw new Error('Gate check-in email failed');
+  console.log('  ✓ Email 3 Triggered: Gate Check-In (Token + Queue Position + Centre).');
+
+  // 4. Payment completed
+  const email4 = await sendPaymentCompletedEmail({
     to: 'ramesh.farmer@example.com',
     farmerName: 'Ramesh Kumar',
     amount: 28437.5,
     bankReferenceNumber: 'UTR2026090400892',
     paidAt: new Date(),
   });
-  if (!email3.success) throw new Error('Payment completed email failed');
-  console.log('  ✓ Email 3 Triggered: Payment Completed (Amount + UTR Reference).');
+  if (!email4.success) throw new Error('Payment completed email failed');
+  console.log('  ✓ Email 4 Triggered: Payment Completed (Amount + UTR Reference).');
 
   console.log('\n' + '='.repeat(70));
   console.log('SUCCESS: All Phase 5, Phase 6, and Phase 7 criteria verified 100%!');

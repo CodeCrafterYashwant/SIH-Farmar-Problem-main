@@ -59,6 +59,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const queueRoutes = require('./routes/queueRoutes');
 const procurementRoutes = require('./routes/procurementRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 // Phase 0: GET /api/health endpoint
 app.get('/api/health', (req, res) => {
@@ -97,6 +98,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/queue', queueRoutes);
 app.use('/api/procurement', procurementRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Optional initial admin setup endpoint if database has no admin
 app.post('/api/setup-admin', async (req, res) => {

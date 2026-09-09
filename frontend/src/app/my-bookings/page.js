@@ -20,7 +20,12 @@ import {
   Scale, 
   IndianRupee, 
   ShieldCheck,
-  Check
+  Check,
+  Star,
+  MessageSquare,
+  Send,
+  ThumbsUp,
+  Edit2
 } from 'lucide-react';
 
 export default function MyBookingsPage() {
@@ -31,6 +36,27 @@ export default function MyBookingsPage() {
   const [cancellingId, setCancellingId] = useState(null);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
+
+  // Review & Rating State
+  const [reviewsMap, setReviewsMap] = useState({});
+  const [reviewDrafts, setReviewDrafts] = useState({});
+  const [reviewSubmittingId, setReviewSubmittingId] = useState(null);
+  const [hoverRating, setHoverRating] = useState({});
+
+  const fetchMyReviews = async () => {
+    try {
+      const res = await apiRequest('/api/reviews/my');
+      if (res.reviews) {
+        const map = {};
+        res.reviews.forEach((r) => {
+          map[r.bookingId] = r;
+        });
+        setReviewsMap(map);
+      }
+    } catch (err) {
+      console.error('Failed to load reviews:', err);
+    }
+  };
 
   const fetchMyBookings = async (isSilent = false) => {
     try {
@@ -56,6 +82,7 @@ export default function MyBookingsPage() {
     window.addEventListener('languageChange', handleLangChange);
 
     fetchMyBookings(false);
+    fetchMyReviews();
 
     // Auto-refresh every 5 seconds for real-time live updates
     const interval = setInterval(() => {
@@ -67,6 +94,36 @@ export default function MyBookingsPage() {
       clearInterval(interval);
     };
   }, []);
+
+  const handleReviewSubmit = async (bookingId) => {
+    const draft = reviewDrafts[bookingId] || {};
+    const existing = reviewsMap[bookingId];
+    const rating = draft.rating || (existing ? existing.rating : 5);
+    const comment = draft.comment !== undefined ? draft.comment : (existing ? existing.comment : '');
+
+    setReviewSubmittingId(bookingId);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const res = await apiRequest('/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ bookingId, rating, comment }),
+      });
+      if (res.success && res.review) {
+        setReviewsMap((prev) => ({ ...prev, [bookingId]: res.review }));
+        setReviewDrafts((prev) => ({
+          ...prev,
+          [bookingId]: { ...prev[bookingId], isEditing: false },
+        }));
+        setMessage(lang === 'hi' ? 'मंडी केंद्र की आपकी समीक्षा सफलतापूर्वक दर्ज हो गई!' : 'Thank you! Mandi review submitted successfully.');
+      }
+    } catch (err) {
+      setError(err.message || (lang === 'hi' ? 'समीक्षा दर्ज करने में त्रुटि' : 'Failed to submit review'));
+    } finally {
+      setReviewSubmittingId(null);
+    }
+  };
 
   const t = translations[lang] || translations.hi;
 
@@ -409,6 +466,189 @@ export default function MyBookingsPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Farmer Mandi Rating & Review Card (Post-Weighment) */}
+                {b.status === 'Procured' && (() => {
+                  const existingReview = reviewsMap[b._id];
+                  const draft = reviewDrafts[b._id] || {};
+                  const isEditing = draft.isEditing || !existingReview;
+                  const currentRating = draft.rating || (existingReview ? existingReview.rating : 5);
+                  const currentComment = draft.comment !== undefined ? draft.comment : (existingReview ? existingReview.comment : '');
+                  const isSubmitting = reviewSubmittingId === b._id;
+
+                  const ratingLabels = {
+                    5: lang === 'hi' ? 'उत्कृष्ट (5/5) — तौल एवं सेवा अत्यधिक संतोषप्रद' : 'Excellent (5/5) — Highly Satisfied',
+                    4: lang === 'hi' ? 'अच्छा (4/5) — पारदर्शी प्रक्रिया' : 'Very Good (4/5) — Smooth & Transparent',
+                    3: lang === 'hi' ? 'संतोषजनक (3/5) — सामान्य व्यवस्था' : 'Average (3/5) — Standard Facility',
+                    2: lang === 'hi' ? 'सुधार अपेक्षित (2/5) — देरी या असुविधा' : 'Needs Improvement (2/5) — Delays faced',
+                    1: lang === 'hi' ? 'असंतोषजनक (1/5) — समस्या का सामना करना पड़ा' : 'Poor (1/5) — Significant Issues',
+                  };
+
+                  return (
+                    <div className="mx-5 mb-5 p-4 rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50/70 via-orange-50/40 to-yellow-50/60 shadow-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-3 border-b border-amber-200/80">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-black shadow-xs">
+                            ★
+                          </div>
+                          <div>
+                            <span className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                              {lang === 'hi' ? 'मंडी केंद्र अनुभव एवं तौल रेटिंग' : 'Mandi Centre & Weighing Experience Rating'}
+                            </span>
+                            <span className="text-[10px] text-amber-900/80 block font-normal">
+                              {lang === 'hi' ? 'आपकी रेटिंग से जिला प्रशासन गुणवत्ता मॉनिटर करेगा और साथी किसानों को सही केंद्र चुनने में मदद मिलेगी' : 'Monitored by District Admin to ensure service quality and help farmers choose best mandis.'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {existingReview && !isEditing && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                            <Check className="w-3 h-3 text-emerald-700" />
+                            {lang === 'hi' ? 'समीक्षा दर्ज है' : 'Verified Review Submitted'}
+                          </span>
+                        )}
+                      </div>
+
+                      {existingReview && !isEditing ? (
+                        <div className="bg-white/95 p-3.5 rounded-lg border border-amber-200 shadow-xs">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <div className="flex items-center text-amber-400">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={`w-4 h-4 ${star <= existingReview.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-xs font-black text-slate-800">
+                                {existingReview.rating} / 5
+                              </span>
+                              <span className="text-[11px] text-slate-500 font-medium ml-1">
+                                • {ratingLabels[existingReview.rating]}
+                              </span>
+                            </div>
+
+                            <button
+                              onClick={() => {
+                                setReviewDrafts((prev) => ({
+                                  ...prev,
+                                  [b._id]: {
+                                    rating: existingReview.rating,
+                                    comment: existingReview.comment,
+                                    isEditing: true,
+                                  },
+                                }));
+                              }}
+                              className="text-xs font-bold text-amber-800 hover:text-amber-950 flex items-center gap-1 underline underline-offset-2"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                              <span>{lang === 'hi' ? 'समीक्षा बदलें' : 'Edit Review'}</span>
+                            </button>
+                          </div>
+
+                          {existingReview.comment ? (
+                            <p className="mt-2 text-xs text-slate-700 italic bg-amber-50/50 p-2.5 rounded border border-amber-100">
+                              "{existingReview.comment}"
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-[11px] text-slate-400 italic">
+                              {lang === 'hi' ? '(कोई टिप्पणी नहीं लिखी गई)' : '(No written comments provided)'}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="bg-white/95 p-4 rounded-lg border border-amber-200 shadow-xs space-y-3">
+                          {/* Star Selector */}
+                          <div>
+                            <span className="text-[11px] font-bold text-slate-700 block mb-1">
+                              {lang === 'hi' ? 'तौल, नमी जांच एवं स्टाफ का व्यवहार (1 से 5 स्टार):' : 'Weighment accuracy, moisture inspection & staff rating:'}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {[1, 2, 3, 4, 5].map((star) => {
+                                const activeStar = (hoverRating[b._id] || currentRating) >= star;
+                                return (
+                                  <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => {
+                                      setReviewDrafts((prev) => ({
+                                        ...prev,
+                                        [b._id]: { ...prev[b._id], rating: star },
+                                      }));
+                                    }}
+                                    onMouseEnter={() => setHoverRating((prev) => ({ ...prev, [b._id]: star }))}
+                                    onMouseLeave={() => setHoverRating((prev) => ({ ...prev, [b._id]: null }))}
+                                    className="p-1 hover:scale-125 transition-transform"
+                                  >
+                                    <Star
+                                      className={`w-6 h-6 ${activeStar ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                                    />
+                                  </button>
+                                );
+                              })}
+                              <span className="ml-2 text-xs font-bold text-amber-900 font-data">
+                                {ratingLabels[hoverRating[b._id] || currentRating]}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Comment box */}
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                              {lang === 'hi' ? 'अपनी राय या सुझाव लिखें (वैकल्पिक):' : 'Write your comments or feedback (Optional):'}
+                            </label>
+                            <textarea
+                              rows="2"
+                              value={currentComment}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setReviewDrafts((prev) => ({
+                                  ...prev,
+                                  [b._id]: { ...prev[b._id], comment: val },
+                                }));
+                              }}
+                              placeholder={lang === 'hi' ? 'उदाहरण: कांटा तौल बहुत सही थी, पर्ची तुरंत मिली एवं स्टाफ का व्यवहार उत्तम था...' : 'e.g. Weighbridge scale was accurate, quick token clearance, courteous staff...'}
+                              className="w-full p-2.5 text-xs text-slate-800 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                            />
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center justify-end gap-2 pt-1">
+                            {existingReview && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReviewDrafts((prev) => ({
+                                    ...prev,
+                                    [b._id]: { ...prev[b._id], isEditing: false },
+                                  }));
+                                }}
+                                className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100"
+                              >
+                                {lang === 'hi' ? 'रद्द करें' : 'Cancel'}
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleReviewSubmit(b._id)}
+                              disabled={isSubmitting}
+                              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-extrabold shadow-sm transition-all disabled:opacity-50"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>
+                                {isSubmitting
+                                  ? (lang === 'hi' ? 'सबमिट हो रहा है...' : 'Submitting...')
+                                  : (lang === 'hi' ? 'रेटिंग व समीक्षा सबमिट करें' : 'Submit Rating & Feedback')}
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Footer Controls */}
                 <div className="bg-slate-50 border-t border-slate-200 p-3 px-5 flex items-center justify-between">

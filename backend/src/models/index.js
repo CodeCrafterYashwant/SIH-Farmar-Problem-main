@@ -5,6 +5,7 @@ const Slot = require('./Slot');
 const Booking = require('./Booking');
 const Procurement = require('./Procurement');
 const Payment = require('./Payment');
+const Review = require('./Review');
 
 module.exports = {
   Farmer,
@@ -14,4 +15,5 @@ module.exports = {
   Booking,
   Procurement,
   Payment,
+  Review,
 };

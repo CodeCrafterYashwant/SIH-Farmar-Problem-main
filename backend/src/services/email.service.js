@@ -79,9 +79,30 @@ const sendPaymentCompletedEmail = async ({ to, farmerName, amount, bankReference
   return sendEmail({ to, subject, text });
 };
 
+// 4. Gate check-in notification
+const sendGateCheckinEmail = async ({ to, farmerName, tokenNumber, centreName, queuePosition, checkinTime }) => {
+  const subject = `Gate Check-In Confirmed — Token: ${tokenNumber} (Queue #${queuePosition})`;
+  const formattedTime = checkinTime
+    ? new Date(checkinTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    : new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+  const text = `Dear ${farmerName},\n\n` +
+    `Your arrival at the procurement centre has been successfully recorded at the gate.\n\n` +
+    `Token Number: ${tokenNumber}\n` +
+    `Centre: ${centreName || 'Procurement Centre'}\n` +
+    `Assigned Scale Queue Position: #${queuePosition}\n` +
+    `Check-in Time: ${formattedTime}\n\n` +
+    `Please proceed to the vehicle holding area or farmer waiting yard. Your token number will be called when the weighing scale is ready for your batch.\n\n` +
+    `Regards,\nSmart Procurement Management Platform`;
+
+  return sendEmail({ to, subject, text });
+};
+
 module.exports = {
   sendEmail,
   sendBookingConfirmedEmail,
   sendCropProcuredEmail,
   sendPaymentCompletedEmail,
+  sendGateCheckinEmail,
 };
+

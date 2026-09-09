@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiRequest } from '../../utils/api';
-import { LogIn, AlertCircle, ShieldCheck } from 'lucide-react';
+import { LogIn, AlertCircle, ShieldCheck, ShieldAlert, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,6 +12,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Role Mismatch Modal
+  const [roleMismatchModal, setRoleMismatchModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    targetSection: '', // 'staff' | 'admin'
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,13 +32,42 @@ export default function LoginPage() {
         body: JSON.stringify({ identifier, password }),
       });
 
+      if (res.user && res.user.role !== 'farmer') {
+        const isAdm = res.user.role === 'admin';
+        setRoleMismatchModal({
+          isOpen: true,
+          title: 'Incorrect Login Section',
+          message: isAdm 
+            ? 'This account belongs to Administrator. Please login using the Admin section only.'
+            : 'This account belongs to Mandi Staff. Please login using the Staff section only.',
+          targetSection: isAdm ? 'admin' : 'staff',
+        });
+        return;
+      }
+
       if (res.token) {
         localStorage.setItem('sih_token', res.token);
         localStorage.setItem('sih_user', JSON.stringify(res.user));
         router.push('/my-bookings');
       }
     } catch (err) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      if (err.message && (err.message.includes('Mandi Staff') || err.message.includes('USE_STAFF_SECTION') || err.message.includes('Staff section'))) {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: 'Incorrect Login Section',
+          message: 'This account belongs to Mandi Staff. Please login using the Staff section only.',
+          targetSection: 'staff',
+        });
+      } else if (err.message && (err.message.includes('Administrator') || err.message.includes('USE_ADMIN_SECTION') || err.message.includes('Admin section'))) {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: 'Incorrect Login Section',
+          message: 'This account belongs to Administrator. Please login using the Admin section only.',
+          targetSection: 'admin',
+        });
+      } else {
+        setError(err.message || 'Login failed. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
@@ -99,6 +136,56 @@ export default function LoginPage() {
           </Link>
         </div>
       </div>
+
+      {/* Role Mismatch Modal Popup */}
+      {roleMismatchModal.isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full p-6 text-white animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3.5 mb-4">
+              <div className="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  {roleMismatchModal.title}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Role restriction enforced for portal security.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 mb-5 leading-relaxed">
+              {roleMismatchModal.message}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setRoleMismatchModal({ ...roleMismatchModal, isOpen: false })}
+                className="px-4 py-2 rounded-xl border border-slate-700 text-slate-300 text-xs font-medium hover:bg-slate-800 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRoleMismatchModal({ ...roleMismatchModal, isOpen: false });
+                  if (roleMismatchModal.targetSection === 'admin') {
+                    router.push('/admin/login');
+                  } else {
+                    router.push('/staff/login');
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
+              >
+                <span>{roleMismatchModal.targetSection === 'admin' ? 'Go to Admin Login' : 'Go to Staff Login'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

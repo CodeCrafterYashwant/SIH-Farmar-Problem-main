@@ -284,14 +284,6 @@ export default function Navbar() {
             {isFarmer && (
               <>
                 <Link
-                  href="/"
-                  className={`px-4 py-2.5 transition-colors ${
-                    pathname === '/' ? 'bg-emerald-700 text-white' : 'hover:bg-blue-900 text-blue-100'
-                  }`}
-                >
-                  {t.navHome}
-                </Link>
-                <Link
                   href="/centres"
                   className={`px-4 py-2.5 transition-colors ${
                     pathname.startsWith('/centres') ? 'bg-emerald-700 text-white' : 'hover:bg-blue-900 text-blue-100'
@@ -439,9 +431,6 @@ export default function Navbar() {
 
             {isFarmer && (
               <>
-                <Link href="/" className="block px-3 py-2 rounded hover:bg-blue-900" onClick={() => setMobileMenuOpen(false)}>
-                  {t.navHome}
-                </Link>
                 <Link href="/centres" className="block px-3 py-2 rounded hover:bg-blue-900" onClick={() => setMobileMenuOpen(false)}>
                   {t.navFarmerCentres}
                 </Link>

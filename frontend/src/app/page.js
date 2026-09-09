@@ -23,8 +23,10 @@ import {
   FileText,
   Landmark,
   KeyRound,
-  ArrowRight
+  ArrowRight,
+  Mic
 } from 'lucide-react';
+import Chatbot from '../components/Chatbot';
 
 export default function UnifiedGovtPortal() {
   const router = useRouter();
@@ -49,6 +51,14 @@ export default function UnifiedGovtPortal() {
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState(null);
 
+  // Role Mismatch Modal State
+  const [roleMismatchModal, setRoleMismatchModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    targetSection: '', // 'farmer' | 'staff' | 'admin'
+  });
+
   useEffect(() => {
     setLang(getStoredLang());
     const handleLangChange = () => setLang(getStoredLang());
@@ -70,6 +80,17 @@ export default function UnifiedGovtPortal() {
         body: JSON.stringify({ identifier: farmerId.trim(), password: farmerPassword }),
       });
 
+      if (res.user && res.user.role !== 'farmer') {
+        const isAdm = res.user.role === 'admin';
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: isAdm ? t.useAdminNotice : t.useStaffNotice,
+          targetSection: isAdm ? 'admin' : 'staff',
+        });
+        return;
+      }
+
       if (res.token) {
         localStorage.setItem('sih_token', res.token);
         localStorage.setItem('sih_user', JSON.stringify(res.user));
@@ -77,30 +98,62 @@ export default function UnifiedGovtPortal() {
         router.push('/my-bookings');
       }
     } catch (err) {
-      setFarmerError(err.message || (lang === 'hi' ? 'लॉगिन विफल। कृपया अपना मोबाइल नंबर और पासवर्ड जांचें।' : 'Login failed. Please check your credentials.'));
+      if (err.message && (err.message.includes('Mandi Staff') || err.message.includes('USE_STAFF_SECTION') || err.message.includes('Staff section'))) {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useStaffNotice,
+          targetSection: 'staff',
+        });
+      } else if (err.message && (err.message.includes('Administrator') || err.message.includes('USE_ADMIN_SECTION') || err.message.includes('Admin section'))) {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useAdminNotice,
+          targetSection: 'admin',
+        });
+      } else {
+        setFarmerError(err.message || (lang === 'hi' ? 'लॉगिन विफल। कृपया अपना मोबाइल नंबर और पासवर्ड जांचें।' : 'Login failed. Please check your credentials.'));
+      }
     } finally {
       setFarmerLoading(false);
     }
   };
 
-  // Handle Staff Login (Dual route resilient)
+  // Handle Staff Login
   const handleStaffLogin = async (e) => {
     e.preventDefault();
     setStaffLoading(true);
     setStaffError(null);
 
     try {
-      let res;
-      try {
-        res = await apiRequest('/api/auth/staff-login', {
-          method: 'POST',
-          body: JSON.stringify({ username: staffUsername.trim().toLowerCase(), password: staffPassword }),
+      const res = await apiRequest('/api/auth/staff-login', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          username: staffUsername.trim().toLowerCase(), 
+          password: staffPassword,
+          expectedRole: 'staff',
+        }),
+      });
+
+      if (res.user && res.user.role === 'farmer') {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useFarmerNotice,
+          targetSection: 'farmer',
         });
-      } catch (err1) {
-        res = await apiRequest('/api/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ identifier: staffUsername.trim().toLowerCase(), password: staffPassword }),
+        return;
+      }
+
+      if (res.user && res.user.role === 'admin') {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useAdminNotice,
+          targetSection: 'admin',
         });
+        return;
       }
 
       if (res && res.token) {
@@ -110,30 +163,62 @@ export default function UnifiedGovtPortal() {
         router.push('/staff/today');
       }
     } catch (err) {
-      setStaffError(err.message || (lang === 'hi' ? 'स्टाफ लॉगिन विफल। यूजरनेम अथवा पासवर्ड त्रुटिपूर्ण है।' : 'Staff login failed. Invalid username or password.'));
+      if (err.message && (err.message.includes('Farmer') || err.message.includes('USE_FARMER_SECTION') || err.message.includes('किसान'))) {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useFarmerNotice,
+          targetSection: 'farmer',
+        });
+      } else if (err.message && (err.message.includes('Administrator') || err.message.includes('USE_ADMIN_SECTION') || err.message.includes('प्रशासक'))) {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useAdminNotice,
+          targetSection: 'admin',
+        });
+      } else {
+        setStaffError(err.message || (lang === 'hi' ? 'स्टाफ लॉगिन विफल। यूजरनेम अथवा पासवर्ड त्रुटिपूर्ण है।' : 'Staff login failed. Invalid username or password.'));
+      }
     } finally {
       setStaffLoading(false);
     }
   };
 
-  // Handle Admin Login (Dual route resilient)
+  // Handle Admin Login
   const handleAdminLogin = async (e) => {
     e.preventDefault();
     setAdminLoading(true);
     setAdminError(null);
 
     try {
-      let res;
-      try {
-        res = await apiRequest('/api/auth/staff-login', {
-          method: 'POST',
-          body: JSON.stringify({ username: adminUsername.trim().toLowerCase(), password: adminPassword }),
+      const res = await apiRequest('/api/auth/staff-login', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          username: adminUsername.trim().toLowerCase(), 
+          password: adminPassword,
+          expectedRole: 'admin',
+        }),
+      });
+
+      if (res.user && res.user.role === 'farmer') {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useFarmerNotice,
+          targetSection: 'farmer',
         });
-      } catch (err1) {
-        res = await apiRequest('/api/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ identifier: adminUsername.trim().toLowerCase(), password: adminPassword }),
+        return;
+      }
+
+      if (res.user && res.user.role === 'staff') {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useStaffNotice,
+          targetSection: 'staff',
         });
+        return;
       }
 
       if (res && res.token) {
@@ -143,7 +228,23 @@ export default function UnifiedGovtPortal() {
         router.push('/admin/dashboard');
       }
     } catch (err) {
-      setAdminError(err.message || (lang === 'hi' ? 'प्रशासक लॉगिन विफल। कृपया क्रेडेंशियल जांचें।' : 'Admin login failed. Please verify credentials.'));
+      if (err.message && (err.message.includes('Farmer') || err.message.includes('USE_FARMER_SECTION') || err.message.includes('किसान'))) {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useFarmerNotice,
+          targetSection: 'farmer',
+        });
+      } else if (err.message && (err.message.includes('Mandi Staff') || err.message.includes('USE_STAFF_SECTION') || err.message.includes('स्टाफ'))) {
+        setRoleMismatchModal({
+          isOpen: true,
+          title: t.wrongPortalTitle,
+          message: t.useStaffNotice,
+          targetSection: 'staff',
+        });
+      } else {
+        setAdminError(err.message || (lang === 'hi' ? 'प्रशासक लॉगिन विफल। कृपया क्रेडेंशियल जांचें।' : 'Admin login failed. Please verify credentials.'));
+      }
     } finally {
       setAdminLoading(false);
     }
@@ -198,6 +299,12 @@ export default function UnifiedGovtPortal() {
                 <Building2 className="w-4 h-4 text-blue-300" />
                 <span>{t.heroCtaCentres}</span>
               </Link>
+
+              {/* Voice AI Prompt Pill */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-semibold backdrop-blur-xs">
+                <Mic className="w-4 h-4 text-emerald-400 animate-pulse" />
+                <span>{lang === 'hi' ? 'बोलकर पूछें: "गेहूं का MSP क्या है?" नीचे चैटबॉट उपलब्ध है' : 'Ask by Voice: "What is Wheat MSP?" Assistant below'}</span>
+              </div>
             </div>
 
             {/* Font Style 3: Tabular Numbers / JetBrains Mono for Data Stats */}
@@ -448,7 +555,11 @@ export default function UnifiedGovtPortal() {
                     className="w-full py-3 rounded-xl bg-blue-950 hover:bg-blue-900 text-white font-semibold text-xs sm:text-sm transition-all shadow-sm active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <LogIn className="w-4 h-4" />
-                    <span>{staffLoading ? '...' : t.loginBtnStaff}</span>
+                    <span>
+                      {staffLoading 
+                        ? (lang === 'hi' ? 'प्रमाणीकरण जारी...' : 'Authenticating...') 
+                        : (t.loginBtnStaff || (lang === 'hi' ? 'मंडी स्टाफ डेस्क में लॉगिन करें' : 'Login to Mandi Staff Desk'))}
+                    </span>
                   </button>
                 </form>
               </div>
@@ -657,6 +768,65 @@ export default function UnifiedGovtPortal() {
           </div>
         </div>
       </footer>
+
+      {/* Role Mismatch Modal Popup */}
+      {roleMismatchModal.isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3.5 mb-4">
+              <div className="w-11 h-11 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  {roleMismatchModal.title}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {t.wrongPortalSub}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 mb-5 leading-relaxed font-medium">
+              {roleMismatchModal.message}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setRoleMismatchModal({ ...roleMismatchModal, isOpen: false })}
+                className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors"
+              >
+                {t.closeBtn}
+              </button>
+              {roleMismatchModal.targetSection && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(roleMismatchModal.targetSection);
+                    setRoleMismatchModal({ ...roleMismatchModal, isOpen: false });
+                    const sectionEl = document.getElementById('portal-login');
+                    if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
+                >
+                  <span>
+                    {roleMismatchModal.targetSection === 'staff'
+                      ? t.goToStaffBtn
+                      : roleMismatchModal.targetSection === 'admin'
+                      ? t.goToAdminBtn
+                      : t.goToFarmerBtn}
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Voice & Text Chatbot (Accessible to all visitors without login) */}
+      <Chatbot />
     </div>
   );
 }

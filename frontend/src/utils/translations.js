@@ -90,9 +90,20 @@ export const translations = {
     staffLoginDesc: 'Authorized login for Gate Inward Officers, Weighbridge Operators & Quality Inspectors',
     usernameLabel: 'Official Staff Username',
     usernamePlaceholder: 'e.g. ramesh_sehore',
-    loginBtnStaff: 'Sign In to Staff Desk',
+    loginBtnStaff: 'Login to Mandi Staff Desk',
     staffNoticeHeading: 'Official Compliance & Security Notice:',
     staffNotice: 'Staff and operator login credentials are generated and provisioned directly by the District Mandi Procurement Officer. Self-registration is strictly prohibited for security, audit, and legal compliance.',
+
+    // Cross-Portal Restriction Modal
+    wrongPortalTitle: 'Incorrect Login Portal',
+    wrongPortalSub: 'Role restriction enforced for security & portal separation.',
+    useStaffNotice: 'This account belongs to Mandi Staff. Please login using the Mandi Staff section only.',
+    useAdminNotice: 'This account belongs to Administrator. Please login using the Admin section only.',
+    useFarmerNotice: 'This account is registered as a Farmer. Please login using the Farmer section only.',
+    goToStaffBtn: 'Go to Staff Section',
+    goToFarmerBtn: 'Go to Farmer Section',
+    goToAdminBtn: 'Go to Admin Section',
+    closeBtn: 'Close',
 
     // Admin Login Card
     adminLoginTitle: 'State Administration & Directorate HQ',
@@ -210,13 +221,20 @@ export const translations = {
     centreCodeLabel: 'Centre Code',
     wheatMspLabel: 'Wheat MSP (₹/kg)',
     paddyMspLabel: 'Paddy MSP (₹/kg)',
+    soybeanMspLabel: 'Soybean MSP (₹/kg)',
+    mustardMspLabel: 'Mustard MSP (₹/kg)',
     saveCentreBtn: 'Save Procurement Centre',
     activeCentresListTitle: 'Active Mandi Centres',
     viewSlotsLink: 'View Slots →',
+    deleteCentreBtn: 'Delete Mandi',
+    confirmDeleteCentre: 'Are you sure you want to delete this procurement centre? This action cannot be undone.',
+    editMspBtn: 'Edit MSP Rates',
+    saveRatesBtn: 'Save MSP Rates',
+    cancelBtn: 'Cancel',
 
     // Admin Staff Page (/admin/staff)
-    adminStaffHeading: 'Mandi Staff & Operator Provisioning',
-    adminStaffSub: 'Issue official login credentials for gate check-in and weighbridge operators',
+    adminStaffHeading: 'Mandi Staff & Operator Management',
+    adminStaffSub: 'Issue, view and manage official login credentials for gate check-in and weighbridge operators',
     officerNameLabel: 'Officer / Staff Full Name',
     officerUsernameLabel: 'Official Username',
     officerPasswordLabel: 'Initial Password',
@@ -224,6 +242,10 @@ export const translations = {
     assignedMandiLabel: 'Assigned Mandi Centre',
     provisionStaffBtn: 'Provision Officer Account',
     staffDisclaimer: 'Official Security Protocol: Mandi staff credentials can only be created by District Procurement Officers or Administrators. Self-registration is disabled.',
+    activeStaffListTitle: 'Active Staff Accounts',
+    deleteStaffBtn: 'Delete Staff',
+    confirmDeleteStaff: 'Are you sure you want to delete this staff account? They will no longer be able to log in.',
+    noStaffMsg: 'No staff accounts registered yet.',
 
     // Admin Slots Page (/admin/slots)
     adminSlotsHeading: 'Batch Slot Generator',
@@ -380,9 +402,20 @@ export const translations = {
     staffLoginDesc: 'गेट प्रविष्टि अधिकारी, तौल कांटा ऑपरेटर एवं गुणवत्ता विश्लेषकों हेतु अधिकृत लॉगिन',
     usernameLabel: 'आधिकारिक स्टाफ यूजरनेम',
     usernamePlaceholder: 'उदा. ramesh_sehore',
-    loginBtnStaff: 'कर्मचारी डेस्क में प्रवेश करें',
+    loginBtnStaff: 'मंडी स्टाफ डेस्क में लॉगिन करें',
     staffNoticeHeading: 'आधिकारिक अनुपालन एवं सुरक्षा निर्देश:',
     staffNotice: 'मंडी स्टाफ एवं ऑपरेटरों के क्रेडेंशियल केवल जिला उपार्जन / विपणन अधिकारी द्वारा सृजित किए जाते हैं। सुरक्षा, ऑडिट एवं विधिक अनुपालन कारणों से कर्मचारियों को स्वयं पंजीयन की अनुमति नहीं है।',
+
+    // Cross-Portal Restriction Modal
+    wrongPortalTitle: 'गलत लॉगिन अनुभाग',
+    wrongPortalSub: 'सुरक्षा एवं पटल पृथक्करण नियमों के कारण पहुंच प्रतिबंधित की गई है।',
+    useStaffNotice: 'यह खाता मंडी स्टाफ का है। कृपया केवल मंडी स्टाफ अनुभाग से लॉगिन करें।',
+    useAdminNotice: 'यह खाता प्रशासक का है। कृपया केवल एडमिन अनुभाग से लॉगिन करें।',
+    useFarmerNotice: 'यह खाता किसान के रूप में पंजीकृत है। कृपया केवल किसान अनुभाग से लॉगिन करें।',
+    goToStaffBtn: 'स्टाफ अनुभाग पर जाएं',
+    goToFarmerBtn: 'किसान अनुभाग पर जाएं',
+    goToAdminBtn: 'एडमिन अनुभाग पर जाएं',
+    closeBtn: 'बंद करें',
 
     // Admin Login Card
     adminLoginTitle: 'राज्य विपणन संचालनालय एवं नियंत्रण कक्ष',
@@ -500,13 +533,20 @@ export const translations = {
     centreCodeLabel: 'मंडी कोड',
     wheatMspLabel: 'गेहूं समर्थन मूल्य (₹/किग्रा)',
     paddyMspLabel: 'धान समर्थन मूल्य (₹/किग्रा)',
+    soybeanMspLabel: 'सोयाबीन समर्थन मूल्य (₹/किग्रा)',
+    mustardMspLabel: 'सरसों समर्थन मूल्य (₹/किग्रा)',
     saveCentreBtn: 'उपार्जन केंद्र सुरक्षित करें',
     activeCentresListTitle: 'पंजीकृत सक्रिय उपार्जन केंद्र',
     viewSlotsLink: 'स्लॉट देखें →',
+    deleteCentreBtn: 'मंडी हटाएं',
+    confirmDeleteCentre: 'क्या आप वाकई इस उपार्जन केंद्र को हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।',
+    editMspBtn: 'समर्थन मूल्य बदलें',
+    saveRatesBtn: 'समर्थन मूल्य सुरक्षित करें',
+    cancelBtn: 'रद्द करें',
 
     // Admin Staff Page (/admin/staff)
-    adminStaffHeading: 'मंडी कर्मचारी व ऑपरेटर खाता सृजन',
-    adminStaffSub: 'गेट सत्यापन व तौल कांटा ऑपरेटरों हेतु केंद्र-वार आधिकारिक लॉगिन क्रेडेंशियल्स जारी करें',
+    adminStaffHeading: 'मंडी कर्मचारी व ऑपरेटर प्रबंधन',
+    adminStaffSub: 'गेट सत्यापन व तौल कांटा ऑपरेटरों हेतु क्रेडेंशियल जारी करें, देखें एवं प्रबंधित करें',
     officerNameLabel: 'अधिकारी / कर्मचारी का पूरा नाम',
     officerUsernameLabel: 'आधिकारिक यूजरनेम',
     officerPasswordLabel: 'प्रारंभिक पासवर्ड',
@@ -514,6 +554,10 @@ export const translations = {
     assignedMandiLabel: 'आवंटित उपार्जन केंद्र',
     provisionStaffBtn: 'कर्मचारी क्रेडेंशियल सृजित करें',
     staffDisclaimer: 'शासकीय सुरक्षा निर्देश: मंडी कर्मचारियों के क्रेडेंशियल केवल जिला उपार्जन अधिकारी द्वारा सृजित किए जाते हैं। स्वयं पंजीयन अक्षम है।',
+    activeStaffListTitle: 'सक्रिय मंडी स्टाफ खाते',
+    deleteStaffBtn: 'खाता हटाएं',
+    confirmDeleteStaff: 'क्या आप वाकई इस स्टाफ खाते को हटाना चाहते हैं? वे आगे लॉगिन नहीं कर सकेंगे।',
+    noStaffMsg: 'अभी तक कोई कर्मचारी खाता पंजीकृत नहीं है।',
 
     // Admin Slots Page (/admin/slots)
     adminSlotsHeading: 'बैच स्लॉट जनरेटर',
