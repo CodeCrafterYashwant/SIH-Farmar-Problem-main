@@ -46,6 +46,13 @@ const procurementSchema = new mongoose.Schema(
       required: [true, 'Total amount is required'],
       min: [0, 'Total amount cannot be negative'],
     },
+    iotMetadata: {
+      deviceId: { type: String, default: null },
+      captureMode: { type: String, default: 'MANUAL' },
+      tamperProofHash: { type: String, default: null },
+      isVerified: { type: Boolean, default: false },
+      capturedAt: { type: Date, default: null },
+    },
   },
   {
     timestamps: true,

@@ -71,6 +71,20 @@ exports.getCentres = async (req, res) => {
   }
 };
 
+// GET /api/centres/:id (Public / get single centre with live MSP)
+exports.getCentreById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const centre = await ProcurementCentre.findById(id);
+    if (!centre) {
+      return res.status(404).json({ error: 'Centre not found' });
+    }
+    return res.status(200).json({ success: true, centre });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch centre', message: error.message });
+  }
+};
+
 // PUT /api/centres/:id (Admin updates Procurement Centre details and MSP rates)
 exports.updateCentre = async (req, res) => {
   try {
@@ -95,6 +109,19 @@ exports.updateCentre = async (req, res) => {
     }
 
     await centre.save();
+
+    if (req.io) {
+      req.io.emit('centre_msp_updated', {
+        centreId: centre._id,
+        centre,
+        ratePerKg: centre.ratePerKg,
+      });
+      req.io.to(`centre_${centre._id}`).emit('centre_msp_updated', {
+        centreId: centre._id,
+        centre,
+        ratePerKg: centre.ratePerKg,
+      });
+    }
 
     return res.status(200).json({
       success: true,

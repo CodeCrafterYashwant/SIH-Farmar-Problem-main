@@ -38,7 +38,19 @@ export default function CentresPage() {
     };
     fetchCentres();
 
-    return () => window.removeEventListener('languageChange', handleLangChange);
+    const handleMspUpdate = () => fetchCentres();
+    window.addEventListener('centreMspUpdated', handleMspUpdate);
+
+    const handleStorageUpdate = (e) => {
+      if (e.key === 'sih_latest_msp') fetchCentres();
+    };
+    window.addEventListener('storage', handleStorageUpdate);
+
+    return () => {
+      window.removeEventListener('languageChange', handleLangChange);
+      window.removeEventListener('centreMspUpdated', handleMspUpdate);
+      window.removeEventListener('storage', handleStorageUpdate);
+    };
   }, []);
 
   const t = translations[lang] || translations.hi;

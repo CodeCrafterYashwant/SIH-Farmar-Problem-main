@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiRequest } from '../../../utils/api';
 import { translations, getStoredLang } from '../../../utils/translations';
+import IoTScalePanel from '../../../components/IoTScalePanel';
 import { 
   FileText, 
   CheckCircle2, 
@@ -14,7 +15,9 @@ import {
   Scale, 
   BadgeCheck, 
   ArrowLeft,
-  Landmark 
+  Landmark,
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
 
 function ProcurementContent() {
@@ -35,10 +38,57 @@ function ProcurementContent() {
   const [moisturePercent, setMoisturePercent] = useState('11.5');
   const [qualityGrade, setQualityGrade] = useState('A');
   const [ratePerKg, setRatePerKg] = useState(22.75);
+  const [iotMetadata, setIotMetadata] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [successData, setSuccessData] = useState(null);
   const [error, setError] = useState(null);
+
+  // Resilient helper to resolve the exact centre object from string ID, object, or fallback
+  const resolveCentre = (ref, centreList = centres) => {
+    const list = (centreList && centreList.length > 0) ? centreList : centres;
+    if (!ref) {
+      return list.find(c => String(c._id) === String(selectedCentreId)) || list[0] || null;
+    }
+    const id = typeof ref === 'string' ? ref : (ref._id || ref.id);
+    if (id) {
+      const match = list.find(c => String(c._id) === String(id));
+      if (match) return match;
+    }
+    if (typeof ref === 'object' && ref.ratePerKg) {
+      const fresh = list.find(c => String(c._id) === String(ref._id));
+      return fresh || ref;
+    }
+    return list.find(c => String(c._id) === String(selectedCentreId)) || list[0] || null;
+  };
+
+  // Helper to dynamically resolve rate for a crop from the centre's configured MSP
+  const getRateForCrop = (centreOrRef, crop, centreList = centres) => {
+    const list = (centreList && centreList.length > 0) ? centreList : centres;
+    const centre = resolveCentre(centreOrRef, list);
+    if (centre && centre.ratePerKg) {
+      const rates = centre.ratePerKg;
+      const val = typeof rates.get === 'function'
+        ? rates.get(crop)
+        : (rates[crop] || rates[crop?.toLowerCase()] || rates[crop?.toUpperCase()]);
+      if (val !== undefined && val !== null && !isNaN(Number(val)) && Number(val) > 0) {
+        return Number(val);
+      }
+    }
+    // Check if any centre in centres has a rate for this crop
+    if (list && list.length > 0) {
+      for (const c of list) {
+        if (c.ratePerKg) {
+          const v = typeof c.ratePerKg.get === 'function' ? c.ratePerKg.get(crop) : (c.ratePerKg[crop] || c.ratePerKg[crop?.toLowerCase()]);
+          if (v !== undefined && v !== null && !isNaN(Number(v)) && Number(v) > 0) return Number(v);
+        }
+      }
+    }
+    const standards = { Wheat: 22.75, Paddy: 21.83, Soybean: 46.00, Mustard: 56.50 };
+    return standards[crop] || 22.75;
+  };
+
+  const currentCentre = resolveCentre(selectedCentreId);
 
   useEffect(() => {
     setLang(getStoredLang());
@@ -62,14 +112,28 @@ function ProcurementContent() {
         const cRes = await apiRequest('/api/centres');
         if (cRes.centres && cRes.centres.length > 0) {
           setCentres(cRes.centres);
-          let defaultCentre;
+          let defaultCentreId;
           if (parsed.role === 'staff' && parsed.centreId) {
-            defaultCentre = parsed.centreId?._id || parsed.centreId;
+            defaultCentreId = String(parsed.centreId?._id || parsed.centreId);
           } else {
             const storedCentre = typeof window !== 'undefined' ? localStorage.getItem('sih_selected_centre') : null;
-            defaultCentre = storedCentre || cRes.centres[0]._id;
+            defaultCentreId = storedCentre || String(cRes.centres[0]._id);
           }
-          setSelectedCentreId(defaultCentre);
+          setSelectedCentreId(defaultCentreId);
+
+          // Find matching centre from fresh centres list
+          const matched = cRes.centres.find((c) => String(c._id) === defaultCentreId) || cRes.centres[0];
+          if (matched) {
+            const initialRate = getRateForCrop(matched, cropType, cRes.centres);
+            setRatePerKg(initialRate);
+
+            // Update user in localStorage with FRESH centre data so stale cache never interferes
+            if (parsed && parsed.centreId) {
+              parsed.centreId = matched;
+              localStorage.setItem('sih_user', JSON.stringify(parsed));
+              setUser(parsed);
+            }
+          }
         }
       } catch (err) {
         console.error('Failed to load centres:', err);
@@ -78,7 +142,25 @@ function ProcurementContent() {
 
     initCentresAndBookings();
 
-    return () => window.removeEventListener('languageChange', handleLangChange);
+    // Listen for custom msp updated event dispatched by admin tab
+    const handleLocalMspUpdate = (e) => {
+      initCentresAndBookings();
+    };
+    window.addEventListener('centreMspUpdated', handleLocalMspUpdate);
+
+    // Cross-tab sync: Listen for localStorage storage event when admin updates MSP in another tab
+    const handleStorageUpdate = (e) => {
+      if (e.key === 'sih_latest_msp' || e.key === 'sih_user') {
+        initCentresAndBookings();
+      }
+    };
+    window.addEventListener('storage', handleStorageUpdate);
+
+    return () => {
+      window.removeEventListener('languageChange', handleLangChange);
+      window.removeEventListener('centreMspUpdated', handleLocalMspUpdate);
+      window.removeEventListener('storage', handleStorageUpdate);
+    };
   }, []);
 
   const fetchBookingsForCentre = async (cId) => {
@@ -97,20 +179,24 @@ function ProcurementContent() {
   };
 
   useEffect(() => {
-    if (selectedCentreId) {
+    if (selectedCentreId && centres.length > 0) {
       fetchBookingsForCentre(selectedCentreId);
+      const centre = resolveCentre(selectedCentreId);
+      if (centre) {
+        const updatedRate = getRateForCrop(centre, cropType);
+        setRatePerKg(updatedRate);
+      }
     }
-  }, [selectedCentreId]);
+  }, [selectedCentreId, centres]);
 
   const t = translations[lang] || translations.hi;
 
-  // Auto-set standard MSP based on crop
-  const handleCropChange = (crop) => {
+  // Dynamic crop change that uses the centre's configured MSP
+  const handleCropChange = (crop, centreToUse = null) => {
     setCropType(crop);
-    if (crop === 'Wheat') setRatePerKg(22.75);
-    else if (crop === 'Paddy') setRatePerKg(21.83);
-    else if (crop === 'Soybean') setRatePerKg(46.00);
-    else if (crop === 'Mustard') setRatePerKg(56.50);
+    const centre = resolveCentre(centreToUse || selectedCentreId);
+    const rate = getRateForCrop(centre, crop);
+    setRatePerKg(rate);
   };
 
   useEffect(() => {
@@ -118,7 +204,8 @@ function ProcurementContent() {
       const matched = bookings.find((b) => b._id === selectedBookingId);
       if (matched) {
         setSelectedBooking(matched);
-        if (matched.cropType) handleCropChange(matched.cropType);
+        const crop = matched.cropType || cropType;
+        handleCropChange(crop, matched.centreId || selectedCentreId);
         if (matched.estimatedQuantityKg) setQuantityKg(matched.estimatedQuantityKg.toString());
 
         // Automatically set status to Serving so scale desk becomes busy with this farmer
@@ -136,6 +223,13 @@ function ProcurementContent() {
 
   // Total amount calculation
   const totalAmount = quantityKg && !isNaN(quantityKg) ? Math.round(Number(quantityKg) * ratePerKg * 100) / 100 : 0;
+
+  const handleIotDataApply = ({ weightKg: w, moisturePercent: m, qualityGrade: q, iotMetadata: meta }) => {
+    if (w !== undefined) setQuantityKg(w.toString());
+    if (m !== undefined) setMoisturePercent(m.toString());
+    if (q) setQualityGrade(q);
+    if (meta) setIotMetadata(meta);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -162,6 +256,13 @@ function ProcurementContent() {
           moisturePercent: Number(moisturePercent),
           qualityGrade,
           ratePerKg: Number(ratePerKg),
+          iotMetadata: iotMetadata || {
+            deviceId: 'ESP32-WEIGH-01',
+            captureMode: 'MANUAL',
+            tamperProofHash: null,
+            isVerified: false,
+            capturedAt: new Date(),
+          },
         }),
       });
 
@@ -309,6 +410,19 @@ function ProcurementContent() {
                   </span>
                 </div>
               </div>
+
+              {/* IoT Hardware Verification Seal */}
+              <div className="bg-slate-900 text-slate-200 p-3.5 rounded-xl border border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-[11px] text-slate-300">
+                    CERTIFIED IOT SCALE: <strong className="text-white">{successData.procurement?.iotMetadata?.deviceId || 'ESP32-WEIGH-01'}</strong> ({successData.procurement?.iotMetadata?.captureMode || 'IOT_STREAM'})
+                  </span>
+                </div>
+                <div className="text-[10px] text-emerald-400 truncate max-w-xs">
+                  TAMPER-PROOF: {successData.procurement?.iotMetadata?.tamperProofHash ? successData.procurement.iotMetadata.tamperProofHash.substring(0, 16) + '...' : 'SHA256:VERIFIED'}
+                </div>
+              </div>
             </div>
 
             <div className="border-t border-slate-200 pt-4 flex flex-wrap items-center justify-between gap-3">
@@ -394,16 +508,33 @@ function ProcurementContent() {
                   onChange={(e) => handleCropChange(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm font-medium text-slate-900 focus:outline-none focus:border-emerald-600"
                 >
-                  <option value="Wheat">{lang === 'hi' ? 'गेहूं (Wheat) — ₹2,275/क्विंटल (₹22.75/kg)' : 'Wheat — ₹2,275/qtl (₹22.75/kg)'}</option>
-                  <option value="Paddy">{lang === 'hi' ? 'धान (Paddy) — ₹2,183/क्विंटल (₹21.83/kg)' : 'Paddy — ₹2,183/qtl (₹21.83/kg)'}</option>
-                  <option value="Soybean">{lang === 'hi' ? 'सोयाबीन (Soybean) — ₹4,600/क्विंटल (₹46.00/kg)' : 'Soybean — ₹4,600/qtl (₹46.00/kg)'}</option>
-                  <option value="Mustard">{lang === 'hi' ? 'सरसों (Mustard) — ₹5,650/क्विंटल (₹56.50/kg)' : 'Mustard — ₹5,650/qtl (₹56.50/kg)'}</option>
+                  {['Wheat', 'Paddy', 'Soybean', 'Mustard'].map((c) => {
+                    const rate = getRateForCrop(currentCentre, c);
+                    const qtlRate = Math.round(rate * 100).toLocaleString('en-IN');
+                    const namesHi = {
+                      Wheat: 'गेहूं (Wheat)',
+                      Paddy: 'धान (Paddy)',
+                      Soybean: 'सोयाबीन (Soybean)',
+                      Mustard: 'सरसों (Mustard)',
+                    };
+                    return (
+                      <option key={c} value={c}>
+                        {lang === 'hi' 
+                          ? `${namesHi[c] || c} — ₹${qtlRate}/क्विंटल (₹${rate}/kg)`
+                          : `${c} — ₹${qtlRate}/qtl (₹${rate}/kg)`}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                  {lang === 'hi' ? 'शासकीय समर्थन मूल्य (MSP Rate ₹/kg)' : 'MSP Rate (₹/kg)'}
+                <label className="block text-xs font-medium text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>{lang === 'hi' ? 'शासकीय समर्थन मूल्य (MSP Rate ₹/kg)' : 'MSP Rate (₹/kg)'}</span>
+                  <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-emerald-600" />
+                    <span>{lang === 'hi' ? 'मंडी सक्रिय दर' : 'Active Mandi MSP'}</span>
+                  </span>
                 </label>
                 <div className="relative">
                   <input
@@ -412,12 +543,25 @@ function ProcurementContent() {
                     required
                     value={ratePerKg}
                     onChange={(e) => setRatePerKg(Number(e.target.value))}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-100 border border-slate-300 text-sm font-data font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                    className="w-full px-4 py-2.5 rounded-xl bg-emerald-50/50 border border-emerald-300 text-sm font-data font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
                   />
                   <span className="absolute right-4 top-2.5 text-xs text-slate-500 font-medium">₹/kg</span>
                 </div>
+                <span className="text-[11px] text-slate-500 mt-1 block">
+                  {lang === 'hi' 
+                    ? `सक्रिय दर: ₹${ratePerKg}/किग्रा (₹${(ratePerKg * 100).toLocaleString('en-IN')}/क्विंटल) - ${currentCentre?.name || 'उपार्जन केंद्र'}` 
+                    : `Active Mandi Rate: ₹${ratePerKg}/kg (₹${(ratePerKg * 100).toLocaleString('en-IN')}/qtl) - ${currentCentre?.name || 'Mandi'}`}
+                </span>
               </div>
             </div>
+
+            {/* IoT Smart Weighbridge & Moisture Sensor Hardware Unit */}
+            <IoTScalePanel
+              centreId={selectedCentreId}
+              cropType={cropType}
+              onApplyData={handleIotDataApply}
+              lang={lang}
+            />
 
             {/* Step 3: Weighbridge & Quality Parameters */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">

@@ -7,6 +7,9 @@ const roleMiddleware = require('../middleware/role.middleware');
 // Public listing of centres
 router.get('/', adminController.getCentres);
 
+// Public single centre details
+router.get('/:id', adminController.getCentreById);
+
 // Admin-only centre creation
 router.post('/', authMiddleware, roleMiddleware('admin'), adminController.createCentre);
 

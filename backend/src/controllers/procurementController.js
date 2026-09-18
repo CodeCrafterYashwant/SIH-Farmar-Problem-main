@@ -49,11 +49,22 @@ exports.createProcurement = async (req, res) => {
     }
 
     const centre = booking.centreId;
-    let rate = centre.ratePerKg ? centre.ratePerKg.get(cropType) : null;
+    let centreRate = null;
+    if (centre && centre.ratePerKg) {
+      centreRate = typeof centre.ratePerKg.get === 'function'
+        ? centre.ratePerKg.get(cropType)
+        : (centre.ratePerKg[cropType] || centre.ratePerKg[cropType.toLowerCase()]);
+    }
 
-    // Fallback if rate not in map
-    if (!rate || isNaN(rate)) {
-      rate = req.body.ratePerKg || 22.5; // Standard fallback rate
+    // Prioritize explicitly submitted rate if valid, otherwise centre rate, otherwise standard MSP fallback
+    let rate = null;
+    if (req.body.ratePerKg && !isNaN(Number(req.body.ratePerKg)) && Number(req.body.ratePerKg) > 0) {
+      rate = Number(req.body.ratePerKg);
+    } else if (centreRate && !isNaN(Number(centreRate))) {
+      rate = Number(centreRate);
+    } else {
+      const standardRates = { Wheat: 22.75, Paddy: 21.83, Soybean: 46.00, Mustard: 56.50 };
+      rate = standardRates[cropType] || 22.75;
     }
 
     const qty = Number(quantityKg);
@@ -68,6 +79,13 @@ exports.createProcurement = async (req, res) => {
       qualityGrade: qualityGrade.toUpperCase(),
       ratePerKg: rate,
       totalAmount,
+      iotMetadata: req.body.iotMetadata || {
+        deviceId: 'ESP32-SCALE-MP01',
+        captureMode: 'MANUAL',
+        tamperProofHash: null,
+        isVerified: false,
+        capturedAt: new Date(),
+      },
     });
 
     await procurement.save();
@@ -257,6 +275,7 @@ exports.getTodayBookings = async (req, res) => {
     })
       .populate('farmerId', 'name mobile village bankAccount')
       .populate('slotId', 'startTime endTime')
+      .populate('centreId')
       .sort({ queuePosition: 1, createdAt: -1 });
 
     return res.status(200).json({

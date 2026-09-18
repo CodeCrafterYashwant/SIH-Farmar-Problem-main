@@ -23,7 +23,8 @@ import {
   TrendingUp,
   UserPlus,
   HelpCircle,
-  ShieldCheck
+  ShieldCheck,
+  Cpu
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -349,6 +350,15 @@ export default function Navbar() {
                   <CreditCard className="w-3.5 h-3.5" />
                   <span>{t.navStaffDisbursement}</span>
                 </Link>
+                <Link
+                  href="/staff/iot"
+                  className={`px-4 py-2.5 transition-colors flex items-center gap-1.5 ${
+                    pathname === '/staff/iot' ? 'bg-purple-700 text-white font-semibold' : 'hover:bg-blue-900 text-purple-200'
+                  }`}
+                >
+                  <Cpu className="w-3.5 h-3.5 text-purple-400" />
+                  <span>{lang === 'hi' ? 'IoT हार्डवेयर (ESP32)' : 'IoT Hardware (ESP32)'}</span>
+                </Link>
               </>
             )}
 
@@ -399,6 +409,15 @@ export default function Navbar() {
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" />
                   <span>{t.navAdminReports}</span>
+                </Link>
+                <Link
+                  href="/staff/iot"
+                  className={`px-4 py-2.5 transition-colors flex items-center gap-1.5 ${
+                    pathname === '/staff/iot' ? 'bg-purple-700 text-white font-semibold' : 'hover:bg-blue-900 text-purple-200'
+                  }`}
+                >
+                  <Cpu className="w-3.5 h-3.5 text-purple-400" />
+                  <span>{lang === 'hi' ? 'IoT टेलीमेट्री' : 'IoT Hardware'}</span>
                 </Link>
               </>
             )}
@@ -457,6 +476,9 @@ export default function Navbar() {
                 <Link href="/staff/payments" className="block px-3 py-2 rounded hover:bg-blue-900" onClick={() => setMobileMenuOpen(false)}>
                   {t.navStaffDisbursement}
                 </Link>
+                <Link href="/staff/iot" className="block px-3 py-2 rounded hover:bg-blue-900 text-purple-300" onClick={() => setMobileMenuOpen(false)}>
+                  ⚡ IoT हार्डवेयर (ESP32 Scale)
+                </Link>
               </>
             )}
 
@@ -476,6 +498,9 @@ export default function Navbar() {
                 </Link>
                 <Link href="/admin/reports" className="block px-3 py-2 rounded hover:bg-blue-900" onClick={() => setMobileMenuOpen(false)}>
                   {t.navAdminReports}
+                </Link>
+                <Link href="/staff/iot" className="block px-3 py-2 rounded hover:bg-blue-900 text-purple-300" onClick={() => setMobileMenuOpen(false)}>
+                  ⚡ IoT हार्डवेयर (ESP32 Scale)
                 </Link>
               </>
             )}

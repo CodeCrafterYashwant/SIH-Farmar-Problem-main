@@ -34,10 +34,19 @@ export default function BookSlotPage() {
 
   const t = translations[lang] || translations.hi;
 
-  // Fetch Centre Info
+  // Fetch Centre Info with dynamic MSP support
   useEffect(() => {
     const fetchCentreInfo = async () => {
       try {
+        // Try direct fetch first, fallback to list
+        try {
+          const direct = await apiRequest(`/api/centres/${centreId}`);
+          if (direct.centre) {
+            setCentre(direct.centre);
+            return;
+          }
+        } catch (_) {}
+
         const res = await apiRequest('/api/centres');
         if (res.centres) {
           const matched = res.centres.find((c) => c._id === centreId);
@@ -48,6 +57,16 @@ export default function BookSlotPage() {
       }
     };
     if (centreId) fetchCentreInfo();
+
+    const handleMspUpdate = (e) => {
+      if (e.detail?.centre && e.detail.centre._id === centreId) {
+        setCentre(e.detail.centre);
+      } else {
+        fetchCentreInfo();
+      }
+    };
+    window.addEventListener('centreMspUpdated', handleMspUpdate);
+    return () => window.removeEventListener('centreMspUpdated', handleMspUpdate);
   }, [centreId]);
 
   // Fetch Available Slots for Centre + Date
@@ -133,6 +152,19 @@ export default function BookSlotPage() {
                 ? 'अपनी सुविधानुसार दिनांक व 2 घंटे का समय चक्र चुनें एवं डिजिटल टोकन प्राप्त करें' 
                 : 'Choose your preferred date and 2-hour window to generate your official mandi token'}
             </p>
+
+            {centre?.ratePerKg && (
+              <div className="mt-4 pt-3 border-t border-slate-800 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">
+                  {lang === 'hi' ? '🏛️ इस केंद्र पर लाइव MSP दरें:' : '🏛️ Live Mandi MSP Rates:'}
+                </span>
+                {Object.entries(centre.ratePerKg).map(([c, r]) => (
+                  <span key={c} className="inline-flex items-center gap-1 bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs px-2.5 py-0.5 rounded-full font-mono font-bold shadow-sm">
+                    {c}: ₹{Number(r).toLocaleString('en-IN')}/kg
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {error && (

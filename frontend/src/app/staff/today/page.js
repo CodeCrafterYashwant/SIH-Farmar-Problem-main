@@ -65,7 +65,15 @@ export default function StaffTodayPage() {
 
     initCentres();
 
-    return () => window.removeEventListener('languageChange', handleLangChange);
+    const handleMspUpdate = () => {
+      initCentres();
+    };
+    window.addEventListener('centreMspUpdated', handleMspUpdate);
+
+    return () => {
+      window.removeEventListener('languageChange', handleLangChange);
+      window.removeEventListener('centreMspUpdated', handleMspUpdate);
+    };
   }, []);
 
   const t = translations[lang] || translations.hi;
@@ -179,6 +187,27 @@ export default function StaffTodayPage() {
               />
             </div>
           </div>
+
+          {/* Active Mandi Live MSP Rates */}
+          {(() => {
+            const activeCentre = centres.find(c => c._id === selectedCentreId) || (user?.centreId?._id ? user.centreId : null);
+            if (!activeCentre?.ratePerKg) return null;
+            return (
+              <div className="w-full mt-2 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  {lang === 'hi' ? '🏛️ इस केंद्र की अधिकृत MSP दरें:' : '🏛️ Official Mandi MSP Rates:'}
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {Object.entries(activeCentre.ratePerKg).map(([crop, rate]) => (
+                    <span key={crop} className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs px-2.5 py-0.5 rounded-full font-mono font-bold shadow-xs">
+                      {crop}: ₹{Number(rate).toLocaleString('en-IN')}/kg
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {message && (

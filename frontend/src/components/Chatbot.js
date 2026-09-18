@@ -76,6 +76,14 @@ export default function Chatbot() {
     };
     fetchCentres();
 
+    const handleMspUpdate = () => fetchCentres();
+    window.addEventListener('centreMspUpdated', handleMspUpdate);
+
+    const handleStorageUpdate = (e) => {
+      if (e.key === 'sih_latest_msp') fetchCentres();
+    };
+    window.addEventListener('storage', handleStorageUpdate);
+
     // Check Speech Recognition support
     if (typeof window !== 'undefined') {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -104,6 +112,11 @@ export default function Chatbot() {
         recognitionRef.current = recognition;
       }
     }
+
+    return () => {
+      window.removeEventListener('centreMspUpdated', handleMspUpdate);
+      window.removeEventListener('storage', handleStorageUpdate);
+    };
   }, []);
 
   // Update recognition language when lang toggles
@@ -182,6 +195,29 @@ export default function Chatbot() {
   const generateBotResponse = (lower) => {
     const isHi = lang === 'hi';
 
+    const getDynamicMsp = (cropName) => {
+      if (centres && centres.length > 0) {
+        for (const c of centres) {
+          if (c.ratePerKg) {
+            const val = typeof c.ratePerKg.get === 'function' 
+              ? c.ratePerKg.get(cropName) 
+              : (c.ratePerKg[cropName] || c.ratePerKg[cropName?.toLowerCase()]);
+            if (val !== undefined && val !== null && !isNaN(Number(val)) && Number(val) > 0) {
+              return Number(val);
+            }
+          }
+        }
+      }
+      const standards = { Wheat: 22.75, Paddy: 21.83, Soybean: 46.00, Mustard: 56.50, Gram: 54.40 };
+      return standards[cropName] || 22.75;
+    };
+
+    const wheatRate = getDynamicMsp('Wheat');
+    const mustardRate = getDynamicMsp('Mustard');
+    const soybeanRate = getDynamicMsp('Soybean');
+    const paddyRate = getDynamicMsp('Paddy');
+    const gramRate = getDynamicMsp('Gram');
+
     // 1. MSP Queries
     if (
       lower.includes('msp') ||
@@ -206,15 +242,15 @@ export default function Chatbot() {
       // Check specific crop
       let matchedCrop = null;
       if (lower.includes('wheat') || lower.includes('गेहूं') || lower.includes('गेहूँ')) {
-        matchedCrop = MSP_DATA.find((c) => c.cropEn === 'Wheat');
+        matchedCrop = { cropEn: 'Wheat', cropHi: 'गेहूं', mspPerQtl: wheatRate * 100, ratePerKg: wheatRate };
       } else if (lower.includes('mustard') || lower.includes('सरसों')) {
-        matchedCrop = MSP_DATA.find((c) => c.cropEn === 'Mustard');
+        matchedCrop = { cropEn: 'Mustard', cropHi: 'सरसों', mspPerQtl: mustardRate * 100, ratePerKg: mustardRate };
       } else if (lower.includes('soybean') || lower.includes('सोयाबीन')) {
-        matchedCrop = MSP_DATA.find((c) => c.cropEn === 'Soybean');
+        matchedCrop = { cropEn: 'Soybean', cropHi: 'सोयाबीन', mspPerQtl: soybeanRate * 100, ratePerKg: soybeanRate };
       } else if (lower.includes('paddy') || lower.includes('धान')) {
-        matchedCrop = MSP_DATA.find((c) => c.cropEn.startsWith('Paddy'));
+        matchedCrop = { cropEn: 'Paddy', cropHi: 'धान', mspPerQtl: paddyRate * 100, ratePerKg: paddyRate };
       } else if (lower.includes('चना') || lower.includes('gram')) {
-        matchedCrop = MSP_DATA.find((c) => c.cropEn.startsWith('Gram'));
+        matchedCrop = { cropEn: 'Gram', cropHi: 'चना', mspPerQtl: gramRate * 100, ratePerKg: gramRate };
       }
 
       if (matchedCrop) {
@@ -223,8 +259,8 @@ export default function Chatbot() {
           sender: 'bot',
           type: 'crop_single',
           crop: matchedCrop,
-          text: `🌾 शासकीय न्यूनतम समर्थन मूल्य (MSP):\n${matchedCrop.cropHi} (${matchedCrop.cropEn}): ₹${matchedCrop.mspPerQtl} प्रति क्विंटल (या ₹${matchedCrop.ratePerKg} प्रति किलो)। इस दर पर पंजीकृत उपार्जन केंद्रों पर भुगतान सीधे आपके आधार लिंक बैंक खाते में अंतरित होगा।`,
-          textEn: `🌾 Govt MSP Rate:\n${matchedCrop.cropEn}: ₹${matchedCrop.mspPerQtl} per Quintal (or ₹${matchedCrop.ratePerKg} per kg). All procurement centres guarantee this MSP directly to your bank account via DBT.`,
+          text: `🌾 शासकीय न्यूनतम समर्थन मूल्य (MSP):\n${matchedCrop.cropHi} (${matchedCrop.cropEn}): ₹${(matchedCrop.ratePerKg * 100).toLocaleString('en-IN')} प्रति क्विंटल (या ₹${matchedCrop.ratePerKg} प्रति किलो)। इस दर पर पंजीकृत उपार्जन केंद्रों पर भुगतान सीधे आपके आधार लिंक बैंक खाते में अंतरित होगा।`,
+          textEn: `🌾 Govt MSP Rate:\n${matchedCrop.cropEn}: ₹${(matchedCrop.ratePerKg * 100).toLocaleString('en-IN')} per Quintal (or ₹${matchedCrop.ratePerKg} per kg). All procurement centres guarantee this MSP directly to your bank account via DBT.`,
           timestamp: new Date(),
         };
       }
@@ -234,8 +270,8 @@ export default function Chatbot() {
         id: Date.now() + 1,
         sender: 'bot',
         type: 'msp_list',
-        text: '🌾 शासन द्वारा घोषित प्रमुख फसलों के न्यूनतम समर्थन मूल्य (MSP):\n• गेहूं (Wheat): ₹2,275/क्विंटल (₹22.75/किग्रा)\n• सरसों (Mustard): ₹5,650/क्विंटल (₹56.50/किग्रा)\n• सोयाबीन (Soybean): ₹4,600/क्विंटल (₹46.00/किग्रा)\n• धान (Paddy): ₹2,183/क्विंटल (₹21.83/किग्रा)\n• चना (Gram): ₹5,440/क्विंटल (₹54.40/किग्रा)\n\nउपार्जन केंद्रों पर तौल के उपरांत पूरा भुगतान 24 से 48 घंटे में सीधे बैंक खाते में जमा किया जाता है।',
-        textEn: '🌾 Current Govt MSP Benchmark Rates:\n• Wheat: ₹2,275/Qtl (₹22.75/kg)\n• Mustard: ₹5,650/Qtl (₹56.50/kg)\n• Soybean: ₹4,600/Qtl (₹46.00/kg)\n• Paddy: ₹2,183/Qtl (₹21.83/kg)\n• Gram: ₹5,440/Qtl (₹54.40/kg)\n\nFull payment is disbursed directly into your Aadhaar-linked bank account within 24-48 hours.',
+        text: `🌾 शासन द्वारा घोषित प्रमुख फसलों के न्यूनतम समर्थन मूल्य (MSP):\n• गेहूं (Wheat): ₹${(wheatRate * 100).toLocaleString('en-IN')}/क्विंटल (₹${wheatRate}/किग्रा)\n• सरसों (Mustard): ₹${(mustardRate * 100).toLocaleString('en-IN')}/क्विंटल (₹${mustardRate}/किग्रा)\n• सोयाबीन (Soybean): ₹${(soybeanRate * 100).toLocaleString('en-IN')}/क्विंटल (₹${soybeanRate}/किग्रा)\n• धान (Paddy): ₹${(paddyRate * 100).toLocaleString('en-IN')}/क्विंटल (₹${paddyRate}/किग्रा)\n• चना (Gram): ₹${(gramRate * 100).toLocaleString('en-IN')}/क्विंटल (₹${gramRate}/किग्रा)\n\nउपार्जन केंद्रों पर तौल के उपरांत पूरा भुगतान 24 से 48 घंटे में सीधे बैंक खाते में जमा किया जाता है।`,
+        textEn: `🌾 Current Govt MSP Benchmark Rates:\n• Wheat: ₹${(wheatRate * 100).toLocaleString('en-IN')}/Qtl (₹${wheatRate}/kg)\n• Mustard: ₹${(mustardRate * 100).toLocaleString('en-IN')}/Qtl (₹${mustardRate}/kg)\n• Soybean: ₹${(soybeanRate * 100).toLocaleString('en-IN')}/Qtl (₹${soybeanRate}/kg)\n• Paddy: ₹${(paddyRate * 100).toLocaleString('en-IN')}/Qtl (₹${paddyRate}/kg)\n• Gram: ₹${(gramRate * 100).toLocaleString('en-IN')}/Qtl (₹${gramRate}/kg)\n\nFull payment is disbursed directly into your Aadhaar-linked bank account within 24-48 hours.`,
         timestamp: new Date(),
       };
     }

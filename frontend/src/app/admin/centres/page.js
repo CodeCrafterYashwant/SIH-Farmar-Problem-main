@@ -215,6 +215,21 @@ export default function AdminCentresPage() {
       });
 
       if (res.success) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('sih_latest_msp', JSON.stringify({ ...payload.ratePerKg, centreId: editingCentre._id, updatedCentre: res.centre, timestamp: Date.now() }));
+          try {
+            const raw = localStorage.getItem('sih_user');
+            if (raw) {
+              const u = JSON.parse(raw);
+              const uCentreId = u.centreId?._id || u.centreId;
+              if (String(uCentreId) === String(editingCentre._id)) {
+                u.centreId = res.centre || { ...u.centreId, ratePerKg: payload.ratePerKg };
+                localStorage.setItem('sih_user', JSON.stringify(u));
+              }
+            }
+          } catch (_) {}
+          window.dispatchEvent(new CustomEvent('centreMspUpdated', { detail: { centreId: editingCentre._id, ratePerKg: payload.ratePerKg, centre: res.centre } }));
+        }
         setMessage(lang === 'hi'
           ? `मंडी '${editingCentre.name}' हेतु सभी 4 फसलों के न्यूनतम समर्थन मूल्य (MSP) अद्यतित किए गए!`
           : `MSP rates for all 4 crops updated successfully for '${editingCentre.name}'!`);

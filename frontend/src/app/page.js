@@ -59,11 +59,61 @@ export default function UnifiedGovtPortal() {
     targetSection: '', // 'farmer' | 'staff' | 'admin'
   });
 
+  const [liveMsp, setLiveMsp] = useState({
+    wheat: 22.75,
+    paddy: 21.83,
+    soybean: 46.00,
+    mustard: 56.50,
+  });
+
   useEffect(() => {
     setLang(getStoredLang());
     const handleLangChange = () => setLang(getStoredLang());
     window.addEventListener('languageChange', handleLangChange);
-    return () => window.removeEventListener('languageChange', handleLangChange);
+
+    const fetchLiveMsp = async () => {
+      try {
+        const res = await apiRequest('/api/centres');
+        if (res.centres && res.centres.length > 0) {
+          for (const c of res.centres) {
+            if (c.ratePerKg) {
+              const w = typeof c.ratePerKg.get === 'function' ? c.ratePerKg.get('Wheat') : (c.ratePerKg.Wheat || c.ratePerKg.wheat);
+              const p = typeof c.ratePerKg.get === 'function' ? c.ratePerKg.get('Paddy') : (c.ratePerKg.Paddy || c.ratePerKg.paddy);
+              const s = typeof c.ratePerKg.get === 'function' ? c.ratePerKg.get('Soybean') : (c.ratePerKg.Soybean || c.ratePerKg.soybean);
+              const m = typeof c.ratePerKg.get === 'function' ? c.ratePerKg.get('Mustard') : (c.ratePerKg.Mustard || c.ratePerKg.mustard);
+              if (w) {
+                setLiveMsp({
+                  wheat: Number(w) || 22.75,
+                  paddy: Number(p) || 21.83,
+                  soybean: Number(s) || 46.00,
+                  mustard: Number(m) || 56.50,
+                });
+                break;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Live MSP fetch warning:', err);
+      }
+    };
+    fetchLiveMsp();
+
+    const handleMspUpdate = () => fetchLiveMsp();
+    window.addEventListener('centreMspUpdated', handleMspUpdate);
+
+    const handleStorageUpdate = (e) => {
+      if (e.key === 'sih_latest_msp') {
+        fetchLiveMsp();
+      }
+    };
+    window.addEventListener('storage', handleStorageUpdate);
+
+    return () => {
+      window.removeEventListener('languageChange', handleLangChange);
+      window.removeEventListener('centreMspUpdated', handleMspUpdate);
+      window.removeEventListener('storage', handleStorageUpdate);
+    };
   }, []);
 
   const t = translations[lang] || translations.hi;
@@ -258,7 +308,11 @@ export default function UnifiedGovtPortal() {
           {t.tickerPrefix}
         </span>
         <div className="whitespace-nowrap overflow-hidden text-ellipsis flex-1">
-          <span className="animate-marquee font-medium text-slate-950 font-body">{t.tickerContent}</span>
+          <span className="animate-marquee font-medium text-slate-950 font-body">
+            {lang === 'hi'
+              ? `रबी एवं खरीफ न्यूनतम समर्थन मूल्य (MSP) 2026: गेहूं (Wheat) ₹${liveMsp.wheat}/किग्रा (₹${(liveMsp.wheat * 100).toLocaleString('en-IN')}/क्विंटल) | धान (Paddy) ₹${liveMsp.paddy}/किग्रा | सोयाबीन (Soybean) ₹${liveMsp.soybean}/किग्रा | सरसों (Mustard) ₹${liveMsp.mustard}/किग्रा। उपार्जन केंद्र पर मूल खसरा/खतौनी, आधार व बैंक पासबुक अवश्य लाएं।`
+              : `Rabi & Kharif MSP Procurement 2026: Wheat ₹${liveMsp.wheat}/kg (₹${(liveMsp.wheat * 100).toLocaleString('en-IN')}/qtl) | Paddy ₹${liveMsp.paddy}/kg | Soybean ₹${liveMsp.soybean}/kg | Mustard ₹${liveMsp.mustard}/kg. Please carry original Land Khasra/Khatauni, Aadhaar & Bank Passbook to the Mandi Gate.`}
+          </span>
         </div>
       </div>
 
@@ -303,7 +357,7 @@ export default function UnifiedGovtPortal() {
               {/* Voice AI Prompt Pill */}
               <div className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-semibold backdrop-blur-xs">
                 <Mic className="w-4 h-4 text-emerald-400 animate-pulse" />
-                <span>{lang === 'hi' ? 'बोलकर पूछें: "गेहूं का MSP क्या है?" नीचे चैटबॉट उपलब्ध है' : 'Ask by Voice: "What is Wheat MSP?" Assistant below'}</span>
+                <span>{lang === 'hi' ? `बोलकर पूछें: "गेहूं का MSP क्या है? (वर्तमान: ₹${liveMsp.wheat}/किग्रा)"` : `Ask by Voice: "What is Wheat MSP? (Live: ₹${liveMsp.wheat}/kg)"`}</span>
               </div>
             </div>
 
