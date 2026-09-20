@@ -42,14 +42,26 @@ export default function IoTDiagnosticsPage() {
     const handleLangChange = () => setLang(getStoredLang());
     window.addEventListener('languageChange', handleLangChange);
 
+    const token = localStorage.getItem('sih_token');
     const rawUser = localStorage.getItem('sih_user');
-    if (rawUser) {
+    if (!token || !rawUser) {
+      router.replace('/');
+      return;
+    }
+    try {
       const parsed = JSON.parse(rawUser);
+      if (parsed.role !== 'staff' && parsed.role !== 'admin') {
+        router.replace('/');
+        return;
+      }
       setUser(parsed);
+    } catch {
+      router.replace('/');
+      return;
     }
 
     return () => window.removeEventListener('languageChange', handleLangChange);
-  }, []);
+  }, [router]);
 
   const t = translations[lang] || translations.hi;
 

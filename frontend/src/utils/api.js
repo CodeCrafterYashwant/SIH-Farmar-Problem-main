@@ -23,7 +23,25 @@ export const apiRequest = async (endpoint, options = {}) => {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      throw new Error(data.message || data.error || `HTTP error ${res.status}`);
+      // If unauthorized on protected endpoint, clear stale token and notify app
+      if (
+        res.status === 401 &&
+        typeof window !== 'undefined' &&
+        !endpoint.includes('/auth/login') &&
+        !endpoint.includes('/auth/staff-login') &&
+        !endpoint.includes('/auth/send-otp') &&
+        !endpoint.includes('/auth/verify-otp')
+      ) {
+        localStorage.removeItem('sih_token');
+        localStorage.removeItem('sih_user');
+        window.dispatchEvent(new Event('authChange'));
+        window.location.href = '/';
+      }
+
+      const err = new Error(data.message || data.error || `HTTP error ${res.status}`);
+      err.status = res.status;
+      err.data = data;
+      throw err;
     }
 
     return data;

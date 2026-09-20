@@ -26,11 +26,17 @@ export default function BookSlotPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('sih_token') : null;
+    if (!token) {
+      router.replace('/');
+      return;
+    }
+
     setLang(getStoredLang());
     const handleLangChange = () => setLang(getStoredLang());
     window.addEventListener('languageChange', handleLangChange);
     return () => window.removeEventListener('languageChange', handleLangChange);
-  }, []);
+  }, [router]);
 
   const t = translations[lang] || translations.hi;
 

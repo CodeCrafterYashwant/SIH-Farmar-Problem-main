@@ -14,6 +14,12 @@ export default function PaymentsPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('sih_token') : null;
+    if (!token) {
+      router.replace('/');
+      return;
+    }
+
     setLang(getStoredLang());
     const handleLangChange = () => setLang(getStoredLang());
     window.addEventListener('languageChange', handleLangChange);
@@ -25,8 +31,8 @@ export default function PaymentsPage() {
           setPayments(res.payments);
         }
       } catch (err) {
-        if (err.message.includes('401') || err.message.includes('Unauthorized')) {
-          router.push('/');
+        if (err.status === 401 || err.message?.includes('401') || err.message?.includes('Unauthorized') || err.message?.includes('token') || err.message?.includes('Token')) {
+          router.replace('/');
         } else {
           setError(err.message || (lang === 'hi' ? 'भुगतान रिकॉर्ड लोड करने में त्रुटि' : 'Failed to load payments'));
         }

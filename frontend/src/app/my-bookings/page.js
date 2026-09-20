@@ -44,6 +44,8 @@ export default function MyBookingsPage() {
   const [hoverRating, setHoverRating] = useState({});
 
   const fetchMyReviews = async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('sih_token') : null;
+    if (!token) return;
     try {
       const res = await apiRequest('/api/reviews/my');
       if (res.reviews) {
@@ -59,6 +61,11 @@ export default function MyBookingsPage() {
   };
 
   const fetchMyBookings = async (isSilent = false) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('sih_token') : null;
+    if (!token) {
+      router.replace('/');
+      return;
+    }
     try {
       if (!isSilent) setLoading(true);
       const res = await apiRequest('/api/bookings/my');
@@ -66,8 +73,8 @@ export default function MyBookingsPage() {
         setBookings(res.bookings);
       }
     } catch (err) {
-      if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
-        router.push('/');
+      if (err.status === 401 || err.message?.includes('401') || err.message?.includes('Unauthorized') || err.message?.includes('token') || err.message?.includes('Token')) {
+        router.replace('/');
       } else if (!isSilent) {
         setError(err.message || (lang === 'hi' ? 'बुकिंग लोड करने में त्रुटि' : 'Failed to load bookings'));
       }
@@ -77,6 +84,12 @@ export default function MyBookingsPage() {
   };
 
   useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('sih_token') : null;
+    if (!token) {
+      router.replace('/');
+      return;
+    }
+
     setLang(getStoredLang());
     const handleLangChange = () => setLang(getStoredLang());
     window.addEventListener('languageChange', handleLangChange);

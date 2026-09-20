@@ -1,9 +1,9 @@
 {
   "pages": {
-    "/page": [
+    "/my-bookings/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
+      "static/chunks/app/my-bookings/page.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
@@ -11,10 +11,20 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/my-bookings/page": [
+    "/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/my-bookings/page.js"
+      "static/chunks/app/page.js"
+    ],
+    "/centres/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/centres/page.js"
+    ],
+    "/register/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/register/page.js"
     ],
     "/admin/dashboard/page": [
       "static/chunks/webpack.js",
@@ -26,45 +36,40 @@
       "static/chunks/main-app.js",
       "static/chunks/app/admin/centres/page.js"
     ],
-    "/staff/today/page": [
+    "/admin/staff/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/staff/today/page.js"
+      "static/chunks/app/admin/staff/page.js"
     ],
-    "/staff/queue/page": [
+    "/admin/slots/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/staff/queue/page.js"
+      "static/chunks/app/admin/slots/page.js"
     ],
-    "/staff/procurement/page": [
+    "/admin/reports/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/staff/procurement/page.js"
-    ],
-    "/staff/payments/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/staff/payments/page.js"
+      "static/chunks/app/admin/reports/page.js"
     ],
     "/staff/iot/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/staff/iot/page.js"
     ],
-    "/payments/page": [
+    "/staff/queue/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/payments/page.js"
+      "static/chunks/app/staff/queue/page.js"
     ],
-    "/centres/page": [
+    "/queue/[centreId]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/centres/page.js"
+      "static/chunks/app/queue/[centreId]/page.js"
     ],
-    "/centres/[id]/book/page": [
+    "/_not-found/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/centres/[id]/book/page.js"
+      "static/chunks/app/_not-found/page.js"
     ]
   }
 }

@@ -765,6 +765,9 @@ video {
 .max-h-\[90vh\]{
   max-height: 90vh;
 }
+.min-h-\[75vh\]{
+  min-height: 75vh;
+}
 .min-h-\[calc\(100vh-65px\)\]{
   min-height: calc(100vh - 65px);
 }
@@ -1128,6 +1131,9 @@ video {
 }
 .border-2{
   border-width: 2px;
+}
+.border-4{
+  border-width: 4px;
 }
 .border-y{
   border-top-width: 1px;
